@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* The pop-up site has no form controls, so it never had to answer this.
+     Square corners and a hairline border are the house style, applied here
+     once rather than on every input in the selector. */
+  input,
+  textarea,
+  select {
+    @apply rounded-none;
+  }
+}

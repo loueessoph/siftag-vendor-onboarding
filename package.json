@@ -1,0 +1,26 @@
+{
+  "name": "siftag-vendor-onboarding",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "db:tables": "node --env-file=.env.local scripts/list-tables.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
