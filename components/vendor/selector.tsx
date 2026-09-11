@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Field, Input, Muted, Pill, Select, TextButton, Textarea } from "@/components/ui";
 import { CompositionEditor } from "@/components/vendor/composition-editor";
 import { MINIMUM_NATURAL_PCT, joinNotes, readComposition, splitNotes } from "@/lib/fibre";
-import { plural } from "@/lib/format";
+import { money, plural } from "@/lib/format";
 import { formatDate } from "@/lib/dates";
 import {
   compareSizes,
@@ -804,7 +804,7 @@ function SentCard({ product }: { product: SelectorProduct }) {
                     )}
                   </td>
                   <td className="py-2 text-right tabular-nums">{v.quantityDeclared ?? 0}</td>
-                  <td className="py-2 text-right tabular-nums">{v.popupPrice ?? "–"}</td>
+                  <td className="py-2 text-right tabular-nums">{money(v.popupPrice)}</td>
                 </tr>
               ))}
             </tbody>
@@ -912,7 +912,7 @@ function ProductRow({
                   product.colour,
                   product.productType,
                   product.variants[0]?.onlinePrice != null
-                    ? `£${product.variants[0].onlinePrice}`
+                    ? money(product.variants[0].onlinePrice)
                     : null,
                 ]
                   .filter(Boolean)
@@ -1037,6 +1037,49 @@ function NotesField({
         />
       </label>
     </div>
+  );
+}
+
+/* Money ---------------------------------------------------------------------- */
+
+/**
+ * A price box that shows two decimals. Free typing while focused; on blur
+ * the value is rounded to the penny, shown as "115.90", and saved. Cheaper
+ * than a number input, which shows "115.9" and steps by arrows nobody wants.
+ */
+function PriceInput({
+  value,
+  disabled,
+  onCommit,
+}: {
+  value: number | null;
+  disabled: boolean;
+  onCommit: (n: number | null) => void;
+}) {
+  const [text, setText] = useState(value == null ? "" : value.toFixed(2));
+  const [focused, setFocused] = useState(false);
+  // Keep in step with outside changes (a bulk reset, a reload) when not typing.
+  useEffect(() => {
+    if (!focused) setText(value == null ? "" : value.toFixed(2));
+  }, [value, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      disabled={disabled}
+      value={text}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setText(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))}
+      onBlur={() => {
+        setFocused(false);
+        const n = text.trim() === "" ? null : Math.round(Number(text) * 100) / 100;
+        const clean = n == null || !Number.isFinite(n) ? null : n;
+        setText(clean == null ? "" : clean.toFixed(2));
+        if (clean !== value) onCommit(clean);
+      }}
+      className="w-full border border-neutral-300 px-2 py-1.5 text-right text-sm tabular-nums focus:border-neutral-900 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-400"
+    />
   );
 }
 
@@ -1628,23 +1671,12 @@ function SizeTable({
             className="w-full border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-900 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-400"
           />
 
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            inputMode="decimal"
+          <PriceInput
+            value={variant.popupPrice}
             disabled={locked || !variant.selected}
-            value={variant.popupPrice ?? ""}
-            onChange={(e) => {
-              const n = e.target.value === "" ? null : Number(e.target.value);
-              onVariant(
-                product.id,
-                variant.id,
-                { popupPrice: n },
-                { popup_price: n }
-              );
-            }}
-            className="w-full border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-900 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-400"
+            onCommit={(n) =>
+              onVariant(product.id, variant.id, { popupPrice: n }, { popup_price: n })
+            }
           />
 
           {locked ? (
@@ -1677,7 +1709,7 @@ function SizeTable({
   return (
     <div>
       <div className="grid grid-cols-[1fr_5rem_6rem_1.5rem] gap-3 border-b border-neutral-200 pb-2">
-        {[groups ? "Variant" : "Size", "Qty", "Pop-up £", ""].map((h) => (
+        {[groups ? "Variant" : "Size", "Qty", "Pop-up price", ""].map((h) => (
           <span
             key={h}
             className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-900"

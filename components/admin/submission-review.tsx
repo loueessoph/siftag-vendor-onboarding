@@ -7,7 +7,7 @@ import {
   type SubmittedProduct,
 } from "@/lib/approvals";
 import { formatDate } from "@/lib/dates";
-import { plural } from "@/lib/format";
+import { money, plural } from "@/lib/format";
 import { splitNotes } from "@/lib/fibre";
 import { compareSizes } from "@/lib/selection";
 
@@ -81,7 +81,7 @@ function SizeTable({ variants }: { variants: SubmittedProduct["variants"] }) {
         <tr className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
           <th className="pb-2 text-left font-normal">Size</th>
           <th className="pb-2 text-right font-normal">Qty</th>
-          <th className="pb-2 text-right font-normal">Pop-up £</th>
+          <th className="pb-2 text-right font-normal">Pop-up price</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-neutral-200 border-y border-neutral-200">
@@ -95,7 +95,7 @@ function SizeTable({ variants }: { variants: SubmittedProduct["variants"] }) {
             </td>
             <td className="py-2 text-right tabular-nums">{v.quantity}</td>
             <td className="py-2 text-right tabular-nums">
-              {v.popupPrice != null ? v.popupPrice : <span className="text-red-600">Missing</span>}
+              {v.popupPrice != null ? money(v.popupPrice) : <span className="text-red-600">Missing</span>}
             </td>
           </tr>
         ))}
