@@ -39,12 +39,12 @@ export default function DesignCheck() {
           <DetailList
             items={[
               {
-                item: "Product list due 4 September",
+                item: "Product list due 14 September",
                 outcome:
                   "We print tags and build the till from these lists, so we can't take late additions.",
               },
               {
-                item: "All stock must arrive by 10 September",
+                item: "All stock must arrive by 18 September (20 September from abroad)",
                 outcome: "Or bring it in person on Thursday 24 September.",
               },
             ]}

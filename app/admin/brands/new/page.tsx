@@ -43,7 +43,7 @@ export default async function NewBrand({
               placeholder="india@indiagracelondon.com"
             />
           </Field>
-          <Field label="Shopify domain">
+          <Field label="Store domain" hint="Shopify or WooCommerce. Anything else needs a CSV.">
             <Input name="shopify_domain" placeholder="indiagracelondon.com" />
           </Field>
           <CsvDropzone />

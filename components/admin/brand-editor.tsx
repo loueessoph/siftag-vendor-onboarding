@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input, TextButton } from "@/components/ui";
 import { updateBrandAction } from "@/app/admin/actions";
 import type { BrandRow } from "@/lib/brands";
 
@@ -30,12 +30,7 @@ export function BrandEditor({
       <section className="py-10 first:pt-0">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="font-display text-xl">Terms</h2>
-          <button
-            onClick={() => setEditing(true)}
-            className="text-[11px] uppercase tracking-[0.15em] text-neutral-500 underline underline-offset-4 transition-colors hover:text-neutral-900"
-          >
-            Edit
-          </button>
+          <TextButton onClick={() => setEditing(true)}>Edit</TextButton>
         </div>
         <dl className="mt-6 divide-y divide-neutral-200">
           <Row label="Participation fee" value={`£${brand.fee_gbp}`} />
@@ -46,6 +41,9 @@ export function BrandEditor({
             <Row label="Balance" value={brand.balance_terms} />
           )}
           <Row label="Commission" value={`${brand.commission_pct}%`} />
+          {brand.payment_terms_note && (
+            <Row label="Note" value={brand.payment_terms_note} />
+          )}
           <Row
             label="Shipping"
             value={
@@ -63,12 +61,7 @@ export function BrandEditor({
     <section className="py-10 first:pt-0">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-display text-xl">Terms</h2>
-        <button
-          onClick={() => setEditing(false)}
-          className="text-[11px] uppercase tracking-[0.15em] text-neutral-500 underline underline-offset-4 transition-colors hover:text-neutral-900"
-        >
-          Cancel
-        </button>
+        <TextButton onClick={() => setEditing(false)}>Cancel</TextButton>
       </div>
 
       {signed && (
@@ -82,12 +75,13 @@ export function BrandEditor({
             they signed.
           </p>
           {!unlocked && (
-            <button
+            <TextButton
+              tone="danger"
+              className="mt-3"
               onClick={() => setUnlocked(true)}
-              className="mt-3 text-[11px] uppercase tracking-[0.15em] text-red-600 underline underline-offset-4"
             >
               Change them anyway
-            </button>
+            </TextButton>
           )}
         </div>
       )}
@@ -114,7 +108,7 @@ export function BrandEditor({
             />
           </Field>
         </div>
-        <Field label="Shopify domain">
+        <Field label="Store domain" hint="Shopify or WooCommerce. Anything else needs a CSV.">
           <Input
             name="shopify_domain"
             defaultValue={brand.shopify_domain ?? ""}

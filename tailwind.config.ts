@@ -18,7 +18,7 @@ export default {
       },
       maxWidth: {
         // Admin tables need more room than the vendor-facing max-w-xl.
-        admin: "80rem",
+        admin: "96rem",
       },
     },
   },

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminShell, Empty } from "@/components/admin/chrome";
-import { Pill } from "@/components/ui";
+import { ButtonLink, Pill } from "@/components/ui";
 import { catalogueStats, listBrands, type BrandRow } from "@/lib/brands";
 import { KEY_DATES, deadlineLabel } from "@/lib/dates";
 
@@ -39,12 +39,12 @@ export default async function AdminHome() {
           : `${submitted} of ${brands.length} lists in`
       }
       action={
-        <Link
-          href="/admin/brands/new"
-          className="border border-neutral-900 px-5 py-3 text-[11px] uppercase tracking-[0.2em] transition-colors hover:bg-neutral-900 hover:text-white"
-        >
-          Add a brand
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <ButtonLink href="/admin/approvals">Approvals</ButtonLink>
+          <ButtonLink href="/admin/brands/new" variant="primary">
+            Add a brand
+          </ButtonLink>
+        </div>
       }
     >
       {rows.length === 0 ? (
@@ -122,11 +122,21 @@ function describe(
   stats: Awaited<ReturnType<typeof catalogueStats>>
 ): string {
   if (brand.submission_status === "submitted") {
-    return `${stats.selectedProducts} products submitted${
+    const pending = stats.selectedProducts - stats.approved - stats.rejected;
+    return `${stats.selectedProducts} products submitted · ${
+      pending > 0
+        ? `${pending} to review`
+        : `${stats.approved} approved${
+            stats.rejected > 0 ? `, ${stats.rejected} rejected` : ""
+          }`
+    }${
       stats.missingComposition > 0
         ? ` · ${stats.missingComposition} missing composition`
         : ""
     }`;
+  }
+  if (brand.submitted_at) {
+    return `Submitted, then edited: ${stats.selectedProducts} selected now, not yet re-submitted`;
   }
   if (brand.agreement_status !== "signed") {
     return brand.last_opened_at
@@ -136,7 +146,7 @@ function describe(
   if (stats.products === 0) {
     return brand.shopify_domain
       ? `Signed. Catalogue not scraped yet: nothing for them to pick from.`
-      : "Signed. No Shopify domain, so they need a CSV upload.";
+      : "Signed. No store domain, so they need a CSV upload.";
   }
   if (stats.selectedProducts === 0) {
     return `Signed. ${stats.products} products waiting, none selected yet.`;

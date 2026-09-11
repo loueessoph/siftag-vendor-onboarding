@@ -28,7 +28,8 @@ export type AgreementVars = {
   catalogueDeadline: string;
 };
 
-export const AGREEMENT_VERSION = "2026-08-18-siftag-fabricax-v2";
+// v3: catalogue deadline moved from 4 to 14 September (clause 4.1).
+export const AGREEMENT_VERSION = "2026-09-11-siftag-fabricax-v3";
 
 /**
  * Unresolved contradictions between this text and the rest of the operation.
@@ -37,7 +38,7 @@ export const AGREEMENT_VERSION = "2026-08-18-siftag-fabricax-v2";
  * everywhere else.
  *
  * All three original entries are now resolved:
- *   - 4.1's deadline is generated from KEY_DATES, so it reads 4 September.
+ *   - 4.1's deadline is generated from KEY_DATES, so it reads 14 September.
  *   - 2.1 is generated from the brand's actual terms, so the "one-day slot"
  *     wording is gone and a deposit arrangement is described properly.
  *   - 7.4 referenced clause 7.2 for "the materials", but 7.2 is the vendor's
@@ -53,6 +54,12 @@ export const AGREEMENT_BLOCKERS: string[] = [];
  * agreed, and retyping that fourteen times is how a contract ends up wrong.
  */
 export function paymentClause(vars: AgreementVars): string {
+  // Commission-only brands (Yusun at 25%). "A participation fee of GBP 0.00"
+  // is true but reads like a mistake on a contract.
+  if (vars.feeGbp <= 0) {
+    return "2.1 No participation fee is payable by the Vendor. The Vendor's place is held on signature of this Agreement, and Siftag's return is the commission set out in clause 2.3.";
+  }
+
   const total = money(vars.feeGbp);
 
   if (vars.depositGbp == null || vars.depositGbp >= vars.feeGbp) {

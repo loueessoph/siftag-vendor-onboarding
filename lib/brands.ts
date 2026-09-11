@@ -122,6 +122,8 @@ export type BrandRow = {
   vat_status: string | null;
   access_token: string;
   agreement_status: string;
+  /** Text version signed, or "external:…" for a copy signed outside the app. */
+  agreement_version: string | null;
   agreement_signed_at: string | null;
   agreement_signed_name: string | null;
   fee_paid_at: string | null;
@@ -159,7 +161,9 @@ export async function catalogueStats(brandId: string) {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("popup_products")
-    .select("id, is_excluded, fibre_composition, popup_variants(id, selected)")
+    .select(
+      "id, is_excluded, fibre_composition, approval_status, popup_variants(id, selected)"
+    )
     .eq("popup_brand_id", brandId);
   if (error) throw error;
 
@@ -179,6 +183,10 @@ export async function catalogueStats(brandId: string) {
     selectedProducts: selectedProducts.length,
     selectedVariants: variants.filter((v) => v.selected).length,
     missingComposition: selectedProducts.filter((p) => !p.fibre_composition)
+      .length,
+    approved: selectedProducts.filter((p) => p.approval_status === "approved")
+      .length,
+    rejected: selectedProducts.filter((p) => p.approval_status === "rejected")
       .length,
   };
 }

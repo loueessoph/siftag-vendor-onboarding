@@ -1,4 +1,4 @@
-import { Button, Field, Input, Muted, Textarea } from "@/components/ui";
+import { Button, Field, Input, Muted, Textarea, TextButton } from "@/components/ui";
 import { KEY_DATES, formatDate } from "@/lib/dates";
 import {
   addPostUrlAction,
@@ -16,17 +16,21 @@ import {
  */
 export function DispatchForm({
   token,
+  due,
   deliveries,
   error,
   saved,
 }: {
   token: string;
+  /** This brand's stock deadline, ISO. UK and international differ. */
+  due: string;
   deliveries: {
     id: string;
     box_count: number | null;
     tracking_reference: string | null;
     declared_at: string | null;
     received_at: string | null;
+    notes?: string | null;
   }[];
   error?: string;
   saved?: boolean;
@@ -40,7 +44,7 @@ export function DispatchForm({
         <Muted>
           Once you&apos;ve sent your boxes, let us know how many and add a
           tracking number if you have one. Everything needs to reach us by{" "}
-          {formatDate(KEY_DATES.stockArrival)}.
+          {formatDate(due)}.
         </Muted>
       </div>
 
@@ -58,21 +62,23 @@ export function DispatchForm({
           </p>
           <ul className="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">
             {deliveries.map((d) => (
-              <li
-                key={d.id}
-                className="flex flex-wrap items-baseline justify-between gap-3 py-3 text-sm"
-              >
-                <span>
-                  {d.box_count} {d.box_count === 1 ? "box" : "boxes"}
-                  {d.tracking_reference && (
-                    <span className="ml-3 text-neutral-500">
-                      {d.tracking_reference}
-                    </span>
-                  )}
-                </span>
-                <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
-                  {d.received_at ? "Received" : "On its way"}
-                </span>
+              <li key={d.id} className="py-3 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <span>
+                    {d.box_count} {d.box_count === 1 ? "box" : "boxes"}
+                    {d.tracking_reference && (
+                      <span className="ml-3 text-neutral-500">
+                        {d.tracking_reference}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
+                    {d.received_at ? "Received" : "On its way"}
+                  </span>
+                </div>
+                {d.notes && (
+                  <p className="mt-1 text-neutral-500">{d.notes}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -100,6 +106,12 @@ export function DispatchForm({
           hint="Optional. No need to tell us the courier, we can look it up."
         >
           <Input name="tracking_reference" placeholder="AB123456789GB" />
+        </Field>
+        <Field
+          label="Notes"
+          hint="Optional. Anything we should know: what's in which box, a fragile item, a later second shipment."
+        >
+          <Textarea name="notes" rows={3} />
         </Field>
         <Button size="compact" type="submit">
           {deliveries.length > 0 ? "Add another shipment" : "Send"}
@@ -172,9 +184,9 @@ export function PostsForm({
 
       {postUrls.length > 0 && (
         <ul className="mt-8 divide-y divide-neutral-200 border-y border-neutral-200">
-          {postUrls.map((url) => (
+          {postUrls.map((url, i) => (
             <li
-              key={url}
+              key={`${i}-${url}`}
               className="flex items-center justify-between gap-4 py-3"
             >
               <a
@@ -188,12 +200,9 @@ export function PostsForm({
               <form action={removePostUrlAction}>
                 <input type="hidden" name="token" value={token} />
                 <input type="hidden" name="post_url" value={url} />
-                <button
-                  type="submit"
-                  className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 transition-colors hover:text-red-600"
-                >
+                <TextButton type="submit" tone="danger">
                   Remove
-                </button>
+                </TextButton>
               </form>
             </li>
           ))}

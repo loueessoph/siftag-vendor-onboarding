@@ -3,14 +3,20 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getVendorByToken } from "@/lib/vendor";
 import { getSelectorProducts, summarise } from "@/lib/selection";
 import { notifyListSubmitted } from "@/lib/email";
+import { listEditable } from "@/lib/dates";
 
 /**
- * Submitting freezes the list.
+ * Submitting snapshots the list.
  *
  * The snapshot is the point: the live catalogue keeps moving after this — the
  * brand discounts something, deletes a product, restocks — so tags, the till
  * and the payout all read from the copy taken here, and nothing a brand does
  * to their website in late September can change what they're owed.
+ *
+ * Until the deadline a brand can keep editing and submit again; each submit
+ * replaces the previous snapshot, so there is always exactly one per brand
+ * and it is always the latest thing they pressed the button on. From the
+ * day after the deadline nothing here is accepted.
  */
 export async function POST(request: NextRequest) {
   let token: string | undefined;
@@ -27,14 +33,14 @@ export async function POST(request: NextRequest) {
   if (!context) {
     return NextResponse.json({ error: "Unknown link" }, { status: 404 });
   }
-  if (context.brand.submission_status === "submitted") {
+  if (!listEditable()) {
     return NextResponse.json(
-      { error: "This list has already been submitted." },
+      { error: "The product list deadline has passed, so your list is now fixed." },
       { status: 409 }
     );
   }
 
-  const products = await getSelectorProducts(context.brand.id);
+  const products = await getSelectorProducts(context.brand);
   const summary = summarise(products);
 
   // Re-checked server-side against the same rules the selector shows inline,
@@ -71,7 +77,8 @@ export async function POST(request: NextRequest) {
 
   const items = products.flatMap((product) =>
     product.variants
-      .filter((variant) => variant.selected)
+      // Ticked with no quantity means "not this size after all".
+      .filter((variant) => variant.selected && (variant.quantityDeclared ?? 0) > 0)
       .map((variant) => ({
         popup_submission_id: submission.id,
         popup_variant_id: variant.id,
@@ -99,12 +106,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not submit" }, { status: 500 });
   }
 
+  // The new snapshot is safely written; retire any earlier ones so the till
+  // export never has to choose between two.
+  const { error: retireError } = await db
+    .from("popup_submissions")
+    .delete()
+    .eq("popup_brand_id", context.brand.id)
+    .neq("id", submission.id);
+  if (retireError) {
+    console.error("retiring previous submission failed", retireError);
+  }
+
   const submittedAt = new Date().toISOString();
   const { error: brandError } = await db
     .from("popup_brands")
     .update({ submission_status: "submitted", submitted_at: submittedAt })
-    .eq("id", context.brand.id)
-    .eq("submission_status", "in_progress");
+    .eq("id", context.brand.id);
   if (brandError) {
     console.error("brand submit flag failed", brandError);
   }

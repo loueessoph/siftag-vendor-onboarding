@@ -8,6 +8,7 @@
 // the only additions are form controls and status pills, which that site never
 // needed.
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 /* Layout ------------------------------------------------------------------ */
@@ -220,8 +221,8 @@ const BUTTON_VARIANTS = {
 } as const;
 
 const BUTTON_SIZES = {
-  large: "py-4 text-sm",
-  compact: "py-3 text-xs",
+  large: "px-8 py-4 text-sm",
+  compact: "px-6 py-3 text-xs",
   // Row-level actions in admin tables and the selector grid.
   small: "px-4 py-2 text-[11px]",
 } as const;
@@ -243,6 +244,48 @@ export function Button({
       className={`${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${
         BUTTON_SIZES[size]
       } ${full ? "w-full" : ""} ${className}`}
+    />
+  );
+}
+
+/** A link dressed as a button, for navigation that reads as an action ("Add a brand"). */
+export function ButtonLink({
+  variant = "secondary",
+  size = "compact",
+  className = "",
+  ...props
+}: React.ComponentProps<typeof Link> & {
+  variant?: keyof typeof BUTTON_VARIANTS;
+  size?: keyof typeof BUTTON_SIZES;
+}) {
+  return (
+    <Link
+      {...props}
+      className={`inline-block ${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]} ${className}`}
+    />
+  );
+}
+
+/**
+ * The quiet action: Edit, Cancel, Remove. Underlined small caps rather than a
+ * box, so it never competes with the one real button on a screen.
+ */
+export function TextButton({
+  tone = "neutral",
+  className = "",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: "neutral" | "danger";
+}) {
+  const colour =
+    tone === "danger"
+      ? "text-red-600 hover:text-red-700"
+      : "text-neutral-500 hover:text-neutral-900";
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`text-[11px] uppercase tracking-[0.15em] underline underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-neutral-300 ${colour} ${className}`}
     />
   );
 }
@@ -292,6 +335,29 @@ export function Input({
       {...props}
       className={`${CONTROL} ${invalid ? "border-red-600" : ""} ${className}`}
     />
+  );
+}
+
+/** Native select in the same clothes as Input: no radius, one black focus ring. */
+export function Select({
+  invalid = false,
+  className = "",
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
+  return (
+    <span className={`relative block ${className}`}>
+      <select
+        {...props}
+        className={`${CONTROL} appearance-none pr-9 ${invalid ? "border-red-600" : ""}`}
+      />
+      <svg
+        aria-hidden
+        viewBox="0 0 12 12"
+        className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-900"
+      >
+        <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </span>
   );
 }
 

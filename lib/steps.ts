@@ -12,7 +12,7 @@
  * at any time; the numbering conveys order, not a gate.
  */
 
-import { KEY_DATES } from "./dates";
+import { KEY_DATES, stockArrivalFor } from "./dates";
 
 export type StepState =
   /** Finished. */
@@ -62,7 +62,8 @@ export const STEPS: StepDefinition[] = [
     slug: "stock",
     title: "Get your stock to us",
     blurb: "Ship it to the venue or bring it on set-up day.",
-    due: KEY_DATES.stockArrival,
+    // The UK date. Use stepsFor(brand) to get the right one for a brand.
+    due: KEY_DATES.stockArrivalUk,
     priority: 2,
   },
   {
@@ -88,14 +89,32 @@ export type StepStatus = {
 
 export type VendorProgress = Record<StepSlug, StepStatus>;
 
-export function stepsWithStatus(progress: VendorProgress) {
-  return STEPS.map((step) => ({ ...step, ...progress[step.slug] }));
+/**
+ * The steps with the stock deadline that applies to this brand. Everything
+ * that shows a brand their dates goes through here rather than STEPS.
+ */
+export function stepsFor(brand: { is_international: boolean }): StepDefinition[] {
+  return STEPS.map((step) =>
+    step.slug === "stock"
+      ? { ...step, due: stockArrivalFor(brand.is_international) }
+      : step
+  );
+}
+
+export function stepsWithStatus(
+  progress: VendorProgress,
+  brand: { is_international: boolean }
+) {
+  return stepsFor(brand).map((step) => ({ ...step, ...progress[step.slug] }));
 }
 
 /** The single thing to put at the top of the hub. */
-export function nextAction(progress: VendorProgress) {
+export function nextAction(
+  progress: VendorProgress,
+  brand: { is_international: boolean }
+) {
   return (
-    stepsWithStatus(progress)
+    stepsWithStatus(progress, brand)
       .filter((s) => s.state !== "done" && s.state !== "locked")
       .sort((a, b) => a.priority - b.priority)[0] ?? null
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { deadlineLabel } from "@/lib/dates";
+import { daysUntil, deadlineLabel } from "@/lib/dates";
 import type { StepState } from "@/lib/steps";
 
 /** Numeral or tick in the gutter — the state at a glance. */
@@ -40,6 +40,29 @@ function stateLabel(state: StepState): string {
 }
 
 /**
+ * Traffic-light colour per step: green once it's done, red when the deadline
+ * is within two days or gone, amber for everything still to do with time in
+ * hand. A step with no deadline (the agreement) is amber until signed.
+ */
+function tone(state: StepState, due?: string): "done" | "urgent" | "open" {
+  if (state === "done" || state === "locked") return "done";
+  if (due && daysUntil(due) <= 2) return "urgent";
+  return "open";
+}
+
+const TONE_BOX: Record<ReturnType<typeof tone>, string> = {
+  done: "border-emerald-600 bg-emerald-50 hover:bg-emerald-100",
+  urgent: "border-red-600 bg-red-50 hover:bg-red-100",
+  open: "border-amber-500 bg-amber-50 hover:bg-amber-100",
+};
+
+const TONE_LABEL: Record<ReturnType<typeof tone>, string> = {
+  done: "text-emerald-800",
+  urgent: "text-red-700",
+  open: "text-amber-800",
+};
+
+/**
  * Every step, always clickable. A brand who can't count stock this week must
  * still be able to jump to their marketing posts, so nothing here is gated on
  * the step above it.
@@ -64,17 +87,18 @@ export function StepList({
   currentSlug?: string;
 }) {
   return (
-    <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
+    <ul className="space-y-3">
       {steps.map((step) => {
         const isCurrent = step.slug === currentSlug;
         const settled = step.state === "done" || step.state === "locked";
+        const t = tone(step.state, step.due);
         return (
           <li key={step.slug}>
             <Link
               href={linkTo(`${base}/${step.slug}`)}
               aria-current={isCurrent ? "page" : undefined}
-              className={`group flex gap-5 py-6 transition-colors ${
-                isCurrent ? "bg-neutral-50" : "hover:bg-neutral-50"
+              className={`flex gap-5 border px-5 py-5 transition-colors ${TONE_BOX[t]} ${
+                isCurrent ? "ring-1 ring-neutral-900" : ""
               }`}
             >
               <span className="w-6 shrink-0 pt-0.5 text-center">
@@ -82,28 +106,22 @@ export function StepList({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span
-                    className={`text-[15px] font-medium ${
-                      settled ? "text-neutral-400" : "text-neutral-900"
-                    }`}
-                  >
+                  <span className="text-[15px] font-medium text-neutral-900">
                     {step.title}
                   </span>
-                  {step.due && !settled && (
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
-                      {deadlineLabel(step.due)}
-                    </span>
-                  )}
+                  <span
+                    className={`text-[11px] uppercase tracking-[0.15em] ${TONE_LABEL[t]}`}
+                  >
+                    {settled
+                      ? stateLabel(step.state)
+                      : step.due
+                      ? deadlineLabel(step.due)
+                      : "To do"}
+                  </span>
                 </span>
-                <span className="mt-1.5 block text-sm leading-relaxed text-neutral-500">
+                <span className="mt-1.5 block text-sm leading-relaxed text-neutral-600">
                   {step.detail ?? step.blurb}
                 </span>
-              </span>
-              <span
-                aria-hidden="true"
-                className="shrink-0 self-center text-neutral-300 transition-transform group-hover:translate-x-1 group-hover:text-neutral-900"
-              >
-                →
               </span>
               <span className="sr-only">{stateLabel(step.state)}</span>
             </Link>

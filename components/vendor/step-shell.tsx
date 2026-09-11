@@ -29,6 +29,7 @@ export function StepShell({
   next,
   children,
   linkTo = (href) => href,
+  wide = false,
 }: {
   base: string;
   step: StepDefinition;
@@ -38,12 +39,14 @@ export function StepShell({
   next?: StepDefinition;
   children: ReactNode;
   linkTo?: (href: string) => string;
+  /** The product list needs the admin width: photos, a size table, a form. */
+  wide?: boolean;
 }) {
   const pill = STATE_PILL[state];
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
-      <Container>
+      <Container wide={wide}>
         <SiteHeader />
 
         <div className="pt-10">

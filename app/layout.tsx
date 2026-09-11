@@ -22,6 +22,8 @@ const gildaDisplay = Gilda_Display({
   weight: ["400"],
 });
 
+import { BackToTop } from "@/components/back-to-top";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +35,7 @@ export default function RootLayout({
         className={`${geistSans.className} ${gildaDisplay.variable} antialiased bg-white text-neutral-900`}
       >
         {children}
+        <BackToTop />
       </body>
     </html>
   );

@@ -13,7 +13,7 @@
 
 import type { BrandRow } from "./brands";
 import type { SelectionSummary } from "./selection";
-import { KEY_DATES, formatDate } from "./dates";
+import { KEY_DATES, formatDate, stockArrivalFor } from "./dates";
 import { plural } from "./format";
 
 export type SendResult = { delivered: boolean; reason?: string };
@@ -122,7 +122,7 @@ ${ADMIN}`,
   For         ${brand.legal_name || brand.name}
   On          ${signedAt} (London)
   Version     ${signature.version}
-  Terms       £${brand.fee_gbp} fee, ${brand.commission_pct}% commission
+  Terms       ${Number(brand.fee_gbp) > 0 ? `£${brand.fee_gbp} fee` : "No participation fee"}, ${brand.commission_pct}% commission
 
 Their page: ${vendorUrl(brand)}`,
   });
@@ -148,7 +148,7 @@ We've got your product list: ${plural(
 
 It's now fixed so we can print your tags and build the till from it. If something needs changing, reply to this email and we'll sort it.
 
-Next: get your stock to us by ${formatDate(KEY_DATES.stockArrival)}. Details are on your page:
+Next: get your stock to us by ${formatDate(stockArrivalFor(brand.is_international))}. Details are on your page:
 ${vendorUrl(brand)}
 
 Sophie & the Siftag team

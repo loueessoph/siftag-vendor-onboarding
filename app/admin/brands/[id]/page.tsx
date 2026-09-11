@@ -7,6 +7,12 @@ import { catalogueStats, getBrand, vendorPath } from "@/lib/brands";
 import { scrapeBrandAction } from "@/app/admin/actions";
 import { BrandEditor } from "@/components/admin/brand-editor";
 import { listDeliveries } from "@/lib/vendor";
+import { getSubmissionReview } from "@/lib/approvals";
+import {
+  SubmissionReviewList,
+  reviewSummary,
+  submittedLine,
+} from "@/components/admin/submission-review";
 
 export const metadata: Metadata = {
   title: "Brand: Siftag pop-up admin",
@@ -33,6 +39,7 @@ export default async function BrandDetail({
 
   const stats = await catalogueStats(brand.id);
   const deliveries = await listDeliveries(brand.id);
+  const review = await getSubmissionReview(brand.id);
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3002";
   const url = `${origin}${vendorPath(brand.slug, brand.access_token)}`;
   const signed = brand.agreement_status === "signed";
@@ -59,7 +66,7 @@ export default async function BrandDetail({
                   Nothing pulled yet.{" "}
                   {brand.shopify_domain
                     ? `Scraping ${brand.shopify_domain} will fetch their products, images, sizes and prices.`
-                    : "No Shopify domain on file, so this brand needs a CSV upload."}
+                    : "No store domain on file, so this brand needs a CSV upload."}
                 </Muted>
               </div>
             ) : (
@@ -109,6 +116,35 @@ export default async function BrandDetail({
             )}
           </Panel>
 
+          <Panel title="Submitted list" id="submitted">
+            {review ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-6">
+                  <Muted>
+                    {submittedLine(review)}
+                    {brand.submission_status !== "submitted" &&
+                      ". They've edited since and not re-submitted; this is the list that stands."}
+                  </Muted>
+                  <Pill tone={review.counts.pending > 0 ? "warn" : "done"}>
+                    {reviewSummary(review)}
+                  </Pill>
+                </div>
+                <SubmissionReviewList
+                  brandId={brand.id}
+                  review={review}
+                  returnTo={`/admin/brands/${brand.id}`}
+                />
+              </>
+            ) : (
+              <div className="py-2">
+                <Muted>
+                  Nothing submitted yet. Once they press submit, every item
+                  appears here to approve or reject.
+                </Muted>
+              </div>
+            )}
+          </Panel>
+
           <Panel title="From the vendor">
             <Row
               label="VAT number"
@@ -126,7 +162,7 @@ export default async function BrandDetail({
                             d.box_count === 1 ? "box" : "boxes"
                           }${d.tracking_reference ? ` (${d.tracking_reference})` : ""}${
                             d.received_at ? " received" : ""
-                          }`
+                          }${d.notes ? `: “${d.notes}”` : ""}`
                       )
                       .join(", ")
               }
@@ -156,8 +192,8 @@ export default async function BrandDetail({
             {(brand.post_urls ?? []).length > 0 && (
               <div className="py-4">
                 <ul className="space-y-1">
-                  {(brand.post_urls ?? []).map((url) => (
-                    <li key={url}>
+                  {(brand.post_urls ?? []).map((url, i) => (
+                    <li key={`${i}-${url}`}>
                       <a
                         href={url}
                         target="_blank"
@@ -237,12 +273,18 @@ const SUBMISSION_LABEL: Record<string, string> = {
 };
 
 function ScrapeSummary({ value }: { value: string }) {
-  const [added, updated, variants, excluded] = value.split(".").map(Number);
+  const [added, updated, variants, excluded, seeded] = value
+    .split(".")
+    .map(Number);
   return (
     <Banner tone="ok">
       Scrape finished: {added} new products, {updated} updated, {variants} new
       variants
-      {excluded > 0 ? `, ${excluded} excluded as non-physical` : ""}.
+      {excluded > 0 ? `, ${excluded} excluded as non-physical` : ""}
+      {seeded > 0
+        ? `, fibre composition read from the description for ${seeded}`
+        : ""}
+      .
     </Banner>
   );
 }
@@ -269,15 +311,26 @@ function Banner({
 
 function Panel({
   title,
+  id,
   children,
 }: {
   title: string;
+  id?: string;
   children: React.ReactNode;
 }) {
+  // The submitted list carries its own cards; everything else is label/value rows.
+  const rows = id !== "submitted";
   return (
-    <section className="border-t border-neutral-200 py-10 first:border-t-0 first:pt-0">
+    <section
+      id={id}
+      className="border-t border-neutral-200 py-10 first:border-t-0 first:pt-0"
+    >
       <h2 className="font-display text-xl">{title}</h2>
-      <dl className="mt-6 divide-y divide-neutral-200">{children}</dl>
+      {rows ? (
+        <dl className="mt-6 divide-y divide-neutral-200">{children}</dl>
+      ) : (
+        <div className="mt-6">{children}</div>
+      )}
     </section>
   );
 }

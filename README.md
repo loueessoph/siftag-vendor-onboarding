@@ -3,7 +3,7 @@
 Vendor onboarding for the Siftag pop-up at Fabrica X, King's Cross, 25 to 27
 September 2026.
 
-One job: get an approved product list from every brand by **4 September**, turn
+One job: get an approved product list from every brand by **14 September**, turn
 it into a till import before the event, and turn the till's sales export into
 per-brand payout reports within 14 days after.
 
@@ -50,8 +50,9 @@ weeks and the product list is the slow one:
    writes itself from the terms, so a deposit arrangement reads differently
    from a flat fee without anyone maintaining two documents.
 2. **Product list.** Their own catalogue as a grid. Tick items, set quantity
-   per size, adjust the pop-up price, type fibre composition. Autosaves.
-   Submitting freezes it.
+   per size, adjust the pop-up price, pick fibre composition. Autosaves, and
+   says so. Submitting snapshots it; they can keep editing and re-submit
+   until the deadline, after which it is read-only.
 3. **Get stock to us.** How many boxes, plus a tracking number.
 4. **Posts and the weekend.** Links to their 3 posts, which days they're
    working, any special requests.
@@ -70,6 +71,13 @@ tables. Vendor pages are unauthenticated, so the token lookup and everything
 behind it happen server-side under the service role. Nothing is queried from a
 browser.
 
+**Scraping reads Shopify or WooCommerce.** `lib/catalogue.ts` probes the
+domain: a Shopify store answers `/products.json`, and everything else that
+mentions WooCommerce is crawled by category page, with each product's size
+and colour matrix read out of the `data-product_variations` JSON on its page
+(`lib/woocommerce.ts`). A headless Shopify storefront (Zubek) needs its
+`*.myshopify.com` domain rather than the custom one. Anything else is a CSV.
+
 **A re-scrape must never destroy a vendor's work.** `lib/ingest.ts` splits
 ownership of every column:
 
@@ -83,6 +91,20 @@ Existing rows get an update payload containing only the scrape's columns, so
 the rest survives by omission. Re-scraping is blocked entirely once a brand has
 submitted.
 
+Fibre composition is the one exception: the scrape reads it out of the product
+description (`extractComposition` in `lib/fibre.ts`, following the marketplace
+scrapers' rules: lining and trim clauses skipped, "20% off" ignored, a single
+named fibre inferred as 100% only when nothing says "blend") and seeds it into
+an empty column. Once anything is there, typed or seeded, it is never touched
+again. Vendors edit it as rows of fibre dropdown plus percentage
+(`components/vendor/composition-editor.tsx`); the stored form stays text,
+"78% Pima Cotton, 22% Silk", so submissions and tags are unchanged.
+
+**Brands can add items by hand.** `lib/custom-items.ts` creates a product with
+a `vendor:` id prefix and till codes, ticked from the start. A re-scrape never
+touches ids it didn't produce, so these survive it; only these can be deleted
+by the brand. Per-item notes from the brand live in `care_notes`.
+
 **Till codes are always ours**, `SFTG-{BRAND}-001`, never the brand's own SKU.
 Two brands can each ship a `TP-01`, and a collision would corrupt the payout
 join rather than fail visibly. There's a unique index on it.
@@ -90,7 +112,13 @@ join rather than fail visibly. There's a unique index on it.
 **Submissions are snapshotted.** `popup_submissions` and
 `popup_submission_items` hold a frozen copy taken at submit. Tags, the till and
 the payout all read from there, so a brand editing their website in late
-September can't change what they're owed.
+September can't change what they're owed. Until the product list deadline a
+brand can edit and submit again; each submit replaces the previous snapshot,
+so there is exactly one per brand. A save after submitting drops
+`submission_status` back to `in_progress` while `submitted_at` stays set: that
+combination means "submitted, then edited, not yet re-submitted", and the hub
+and admin both say so. `listEditable()` in `lib/dates.ts` is the single gate,
+checked by the save and submit routes and the page; it closes at the end of the deadline day anywhere on earth (UTC-12).
 
 **The 90% natural fibre rule** is clause 4.2 and a condition of approval.
 `lib/fibre.ts` reads a percentage out of whatever the vendor types, treats
@@ -113,7 +141,8 @@ npm run db:tables   # lists every table in the project, ours and the marketplace
   but with no `RESEND_API_KEY` it logs what it would have sent and reports
   `delivered: false`, so an unsent notice never looks like a sent one.
 - **Reminder schedule** (21 Aug, 28 Aug, 1 Sept, 3 Sept) isn't wired up.
-- **Approvals queue**, **delivery check-in**, **payout reports**.
+- **Delivery check-in**, **payout reports**. (The approvals queue is built:
+  `/admin/approvals`, decisions stored on `popup_products`.)
 - **Till export** is deliberately out of scope; handled separately.
 
 ## Design

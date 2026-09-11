@@ -75,6 +75,7 @@ export async function declareDispatchAction(formData: FormData) {
   const token = String(formData.get("token") ?? "");
   const boxCount = Number(formData.get("box_count") ?? 0);
   const tracking = String(formData.get("tracking_reference") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
 
   const context = await getVendorByToken(token);
   if (!context) redirect("/");
@@ -87,6 +88,7 @@ export async function declareDispatchAction(formData: FormData) {
   await declareDispatch(context.brand.id, {
     boxCount,
     trackingReference: tracking || null,
+    notes: notes || null,
   });
 
   revalidatePath(base);
@@ -114,6 +116,8 @@ export async function addPostUrlAction(formData: FormData) {
   }
 
   const existing = (context.brand.post_urls ?? []) as string[];
+  // The same post twice is a double-click or a re-paste, not a second post.
+  if (existing.includes(normalised)) redirect(`${base}/marketing?saved=1`);
   await savePostUrls(context.brand.id, [...existing, normalised]);
 
   revalidatePath(base);

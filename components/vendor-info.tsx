@@ -96,8 +96,9 @@ export function GettingStockToUs() {
       </div>
       <Bullets>
         <Bullet>
-          <Strong>We accept stock from 18 August up to 10 September.</Strong>{" "}
-          Everything must be with us by 10 September.
+          <Strong>We accept stock from 18 August.</Strong> UK brands: everything
+          must be with us by <Strong>18 September</Strong>. International
+          brands: by <Strong>20 September</Strong>, to allow for customs.
         </Bullet>
         <Bullet>
           Or bring it in person on{" "}
@@ -124,7 +125,7 @@ export function GettingStockToUs() {
 export function YourProductList() {
   return (
     <Section id="product-list">
-      <SectionHeading>Your product list, due 4 September</SectionHeading>
+      <SectionHeading>Your product list, due 14 September</SectionHeading>
       <div className="mt-6 space-y-4">
         <Muted>
           Everything you&apos;re selling has to be on your list before the
@@ -148,7 +149,9 @@ export function YourProductList() {
           We&apos;ll confirm approval on each item once your list is in.
         </Muted>
         <Muted>
-          <Strong>Deadline: 4 September.</Strong> We print tags and build the
+          <Strong>Deadline: 14 September, anywhere on earth.</Strong> Wherever
+          you are, submitting by midnight on the 14th your time is in time. We
+          print tags and build the
           till from these lists, so we can&apos;t take late additions.
         </Muted>
       </div>
@@ -228,8 +231,12 @@ export function KeyDates() {
         evenSplit
         rows={[
           { label: "From 18 August", value: "We can receive your stock" },
-          { label: "4 September", value: "Product list due" },
-          { label: "10 September", value: "All stock must have arrived" },
+          { label: "14 September", value: "Product list due (anywhere on earth)" },
+          { label: "18 September", value: "All stock from UK brands must have arrived" },
+          {
+            label: "20 September",
+            value: "All stock from international brands must have arrived",
+          },
           {
             label: "Thu 24 September, 9am to 6pm",
             value: "Set-up and in-person drop-off",
@@ -268,7 +275,7 @@ export function QuestionsWeGetAsked() {
             a: "Sales at the pop-up are final sale. Refunds are only for faulty or not-as-described goods, within 30 days. If a refund arises from a product fault or incorrect information, it comes out of your sales.",
           },
           {
-            q: "Can I change my product list after 4 September?",
+            q: "Can I change my product list after 14 September?",
             a: "Small corrections, yes. New items, no: tags and till entries are built from the list.",
           },
           {

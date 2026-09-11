@@ -7,9 +7,21 @@
 import { supabaseAdmin } from "./supabase/server";
 import { catalogueStats, type BrandRow } from "./brands";
 import type { AgreementVars } from "@/content/agreement";
-import { KEY_DATES, formatDate } from "./dates";
+import { KEY_DATES, formatDate, listEditable } from "./dates";
 import { plural } from "./format";
 import type { StepSlug, VendorProgress } from "./steps";
+
+/**
+ * Some brands signed a Google Docs copy of the agreement before this app
+ * existed. Their row is marked signed with this version string instead of a
+ * text version, so the page tells them so rather than asking them to sign
+ * again or claiming a copy was emailed.
+ */
+export const EXTERNAL_SIGNATURE_VERSION = "external:google-docs";
+
+export function signedExternally(brand: Pick<BrandRow, "agreement_version">) {
+  return brand.agreement_version?.startsWith("external:") ?? false;
+}
 
 export type VendorContext = {
   brand: BrandRow;
@@ -55,23 +67,51 @@ function buildProgress(
   stats: Awaited<ReturnType<typeof catalogueStats>>
 ): VendorProgress {
   const signed = brand.agreement_status === "signed";
+  const editable = listEditable();
+  const submittedOn = brand.submitted_at
+    ? ` ${formatDate(brand.submitted_at.slice(0, 10))}`
+    : "";
+  const deadline = formatDate(KEY_DATES.productList);
+  const decided = stats.approved + stats.rejected;
+  const decisions =
+    decided > 0
+      ? ` · ${stats.approved} approved${
+          stats.rejected > 0 ? `, ${stats.rejected} not approved` : ""
+        }${
+          stats.selectedProducts - decided > 0
+            ? `, ${stats.selectedProducts - decided} pending`
+            : ""
+        }`
+      : "";
 
   const products: VendorProgress[StepSlug] =
     brand.submission_status === "submitted"
-      ? {
-          state: "locked",
-          detail: `${plural(stats.selectedProducts, "item")} submitted${
-            brand.submitted_at
-              ? ` ${formatDate(brand.submitted_at.slice(0, 10))}`
-              : ""
-          }`,
-        }
+      ? editable
+        ? {
+            state: "done",
+            detail: `${plural(stats.selectedProducts, "item")} submitted${submittedOn}${decisions}. You can still change it until ${deadline}.`,
+          }
+        : {
+            state: "locked",
+            detail: `${plural(stats.selectedProducts, "item")} submitted${submittedOn}${decisions}`,
+          }
+      : brand.submitted_at
+      ? // Submitted once, then edited: the snapshot is behind the live list.
+        editable
+        ? {
+            state: "in_progress",
+            detail: `Changed since you submitted${submittedOn}. Press "Update for approval" by ${deadline} so we review the right list.`,
+          }
+        : {
+            state: "locked",
+            detail: `${plural(stats.selectedProducts, "item")} submitted${submittedOn}. Later changes weren't submitted before the deadline, so the submitted list stands.`,
+          }
       : stats.products === 0
       ? { state: "todo", detail: "We're still loading your catalogue." }
       : stats.selectedProducts === 0
       ? {
           state: "todo",
-          detail: `${plural(stats.products, "product")} ready for you to pick from.`,
+          detail: `${plural(stats.products, "product")} from your site ready for you to pick from.`,
         }
       : {
           state: "in_progress",
@@ -84,7 +124,9 @@ function buildProgress(
 
   return {
     agreement: signed
-      ? {
+      ? signedExternally(brand)
+        ? { state: "done", detail: "Signed through Google Docs" }
+        : {
           state: "done",
           detail: `Signed ${
             brand.agreement_signed_at
@@ -170,12 +212,13 @@ export async function recordSignature(
  */
 export async function declareDispatch(
   brandId: string,
-  input: { boxCount: number; trackingReference: string | null }
+  input: { boxCount: number; trackingReference: string | null; notes: string | null }
 ): Promise<void> {
   const { error } = await supabaseAdmin().from("popup_deliveries").insert({
     popup_brand_id: brandId,
     box_count: input.boxCount,
     tracking_reference: input.trackingReference,
+    notes: input.notes,
     declared_by_vendor: true,
     declared_at: new Date().toISOString(),
     received_at: null,
@@ -199,7 +242,7 @@ export async function savePostUrls(
 ): Promise<void> {
   const { error } = await supabaseAdmin()
     .from("popup_brands")
-    .update({ post_urls: urls })
+    .update({ post_urls: [...new Set(urls)] })
     .eq("id", brandId);
   if (error) throw error;
 }

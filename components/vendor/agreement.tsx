@@ -118,17 +118,21 @@ export function SignatureBlock({
   brandLegalName,
   signedAt,
   signedBy,
+  signedExternally = false,
 }: {
   token: string;
   brandLegalName: string;
   signedAt?: string;
   signedBy?: string;
+  /** Signed a Google Docs copy before this page existed. */
+  signedExternally?: boolean;
 }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
 
+  if (signedExternally) return <ExternallySignedReceipt />;
   if (signedAt && signedBy) {
     return <SignedReceipt signedAt={signedAt} signedBy={signedBy} />;
   }
@@ -243,6 +247,26 @@ function SignButton({
         ? "Signing\u2026"
         : "Sign the agreement"}
     </Button>
+  );
+}
+
+function ExternallySignedReceipt() {
+  return (
+    <div className="border border-neutral-200 p-6 sm:p-8">
+      <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+        Signed
+      </p>
+      <p className="mt-3 font-display text-xl">
+        You&apos;ve already signed this agreement through Google Docs.
+      </p>
+      <div className="mt-3">
+        <Muted>
+          Nothing to do here. The text above is the same agreement for
+          reference; the copy you signed is the one that stands. Ask us if you
+          need another copy.
+        </Muted>
+      </div>
+    </div>
   );
 }
 

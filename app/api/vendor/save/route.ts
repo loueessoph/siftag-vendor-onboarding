@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getVendorByToken } from "@/lib/vendor";
+import { listEditable } from "@/lib/dates";
 
 /**
  * Autosave for the product selector. One field at a time, debounced by the
@@ -46,9 +47,12 @@ export async function POST(request: NextRequest) {
   if (!context) {
     return NextResponse.json({ error: "Unknown link" }, { status: 404 });
   }
-  if (context.brand.submission_status === "submitted") {
+  // Submitted lists stay editable until the deadline; the page shows an
+  // "update my list" button so the snapshot can be refreshed. After the
+  // deadline the tags are being printed from it, so it's read-only.
+  if (!listEditable()) {
     return NextResponse.json(
-      { error: "Your list has been submitted, so it's now read-only." },
+      { error: "The product list deadline has passed, so your list is now fixed." },
       { status: 409 }
     );
   }
@@ -100,6 +104,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Bad request" }, { status: 400 });
     }
 
+    // A save after submitting drops the status back to in_progress: the
+    // snapshot no longer matches the live list, and the hub says so until
+    // they press "Update for approval". submitted_at is kept, so we still know
+    // they submitted once.
     await db
       .from("popup_brands")
       .update({

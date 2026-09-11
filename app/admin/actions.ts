@@ -6,6 +6,7 @@ import { createBrand, getBrand } from "@/lib/brands";
 import { ingestCatalogue, SubmittedListError } from "@/lib/ingest";
 import { CsvFormatError, productsFromCsv } from "@/lib/csv";
 import { updateBrandTerms } from "@/lib/brands";
+import { setApproval } from "@/lib/approvals";
 
 function optional(form: FormData, key: string): string | null {
   const value = String(form.get(key) ?? "").trim();
@@ -107,7 +108,7 @@ export async function scrapeBrandAction(formData: FormData) {
     );
     revalidatePath(`/admin/brands/${brandId}`);
     redirect(
-      `/admin/brands/${brandId}?scraped=${result.productsAdded}.${result.productsUpdated}.${result.variantsAdded}.${result.excluded}`
+      `/admin/brands/${brandId}?scraped=${result.productsAdded}.${result.productsUpdated}.${result.variantsAdded}.${result.excluded}.${result.compositionsSeeded}`
     );
   } catch (error) {
     // redirect() throws by design — don't swallow it as a scrape failure.
@@ -122,4 +123,29 @@ export async function scrapeBrandAction(formData: FormData) {
       `/admin/brands/${brandId}?error=${encodeURIComponent(message.slice(0, 200))}`
     );
   }
+}
+
+/**
+ * Approve or reject one submitted product, with an optional note the vendor
+ * sees. The same form carries both buttons; which one was pressed arrives as
+ * `decision`. "pending" undoes a decision.
+ */
+export async function reviewProductAction(formData: FormData) {
+  const brandId = String(formData.get("brand_id") ?? "");
+  const productId = String(formData.get("product_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const returnTo = String(formData.get("return_to") ?? `/admin/brands/${brandId}`);
+
+  if (!brandId || !productId) redirect("/admin?error=missing-brand");
+  if (decision !== "approved" && decision !== "rejected" && decision !== "pending") {
+    redirect(`${returnTo}?error=${encodeURIComponent("Unknown decision.")}`);
+  }
+
+  await setApproval(brandId, productId, decision, note);
+
+  revalidatePath(`/admin/brands/${brandId}`);
+  revalidatePath("/admin/approvals");
+  revalidatePath("/admin");
+  redirect(`${returnTo}#product-${productId}`);
 }

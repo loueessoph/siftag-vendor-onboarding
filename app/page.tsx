@@ -47,8 +47,9 @@ export default function VendorInformationPage() {
             <Muted>
               Everything you need is on this page. There are three things to do:{" "}
               <Strong>sign your agreement</Strong>,{" "}
-              <Strong>send us your product list by 4 September</Strong>, and{" "}
-              <Strong>get your stock to us by 10 September</Strong>. We handle
+              <Strong>send us your product list by 14 September</Strong>, and{" "}
+              <Strong>get your stock to us by 18 September</Strong> (20
+              September if you&apos;re shipping from outside the UK). We handle
               the rest.
             </Muted>
           </div>

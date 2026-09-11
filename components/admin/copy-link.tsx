@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui";
+
 import { useState } from "react";
 
 /** The link you paste into an email. Shown in full so it can be checked. */
@@ -14,16 +16,18 @@ export function CopyLink({ url }: { url: string }) {
       <p className="mt-3 break-all font-mono text-xs leading-relaxed text-neutral-900">
         {url}
       </p>
-      <button
+      <Button
+        size="small"
+        variant="secondary"
+        className="mt-4"
         onClick={async () => {
           await navigator.clipboard.writeText(url);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }}
-        className="mt-4 border border-neutral-900 px-4 py-2 text-[11px] uppercase tracking-[0.15em] transition-colors hover:bg-neutral-900 hover:text-white"
       >
         {copied ? "Copied" : "Copy link"}
-      </button>
+      </Button>
       <p className="mt-4 text-xs leading-relaxed text-neutral-500">
         Anyone with this link can see and edit this brand&apos;s list. Send it
         to them directly: don&apos;t post it anywhere.

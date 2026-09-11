@@ -6,6 +6,8 @@
  * paginate until a page comes back empty.
  */
 
+import { extractComposition, fabricDetails } from "./fibre";
+
 export type ScrapedVariant = {
   shopifyVariantId: string;
   vendorSku: string | null;
@@ -23,6 +25,10 @@ export type ScrapedProduct = {
   productType: string | null;
   /** Set where the item can't be sold at a physical pop-up. */
   exclusionReason: string | null;
+  /** Read from the product description where one is stated, e.g. "80% Wool, 20% Nylon". */
+  fibreComposition: string | null;
+  /** The itemised statement where there is one: "Body: 100% Cotton · Trim: 100% Cotton". */
+  fabricDetails: string | null;
   variants: ScrapedVariant[];
 };
 
@@ -43,6 +49,7 @@ type RawProduct = {
   title: string;
   handle: string;
   product_type: string | null;
+  body_html?: string | null;
   options: { name: string; values: string[] }[];
   images: { src: string }[];
   variants: RawVariant[];
@@ -177,9 +184,16 @@ export async function fetchShopifyCatalogue(
   const out: ScrapedProduct[] = [];
 
   for (let page = 1; page <= maxPages; page++) {
+    // Shopify Markets localises products.json by the caller's IP: from
+    // outside the UK the same store answers in won or dollars, and one
+    // re-scrape from the wrong network once turned £1,000 into 1,680,000.
+    // country=GB pins it to the UK market, which is what the tags are in.
     const res = await fetch(
-      `https://${host}/products.json?limit=250&page=${page}`,
-      { headers: { accept: "application/json" }, cache: "no-store" }
+      `https://${host}/products.json?limit=250&page=${page}&country=GB`,
+      {
+        headers: { accept: "application/json", "accept-language": "en-GB" },
+        cache: "no-store",
+      }
     );
     if (!res.ok) {
       throw new Error(
@@ -199,6 +213,8 @@ export async function fetchShopifyCatalogue(
         imageUrl: product.images[0]?.src ?? null,
         productType: product.product_type?.trim() || null,
         exclusionReason: exclusionReasonFor(product),
+        fibreComposition: extractComposition(product.body_html ?? ""),
+        fabricDetails: fabricDetails(product.body_html ?? ""),
         variants: product.variants.map((variant) => {
           const { size, colour } = readOptions(product, variant);
           const vendorSku = variant.sku?.trim() || null;
@@ -219,5 +235,69 @@ export async function fetchShopifyCatalogue(
     if (products.length < 250) break;
   }
 
+  await enrichFromProductPages(host, out);
   return out;
+}
+
+/* Product pages -------------------------------------------------------------- */
+
+const PAGE_HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 SiftagCatalogue/1.0",
+  accept: "text/html",
+};
+
+/**
+ * Some themes keep fabric content out of the description, in a metafield
+ * accordion ("Fabric & Care") that products.json never carries. For products
+ * the feed left without a composition, fetch the page once and read the
+ * section around a fabric heading. A few at a time; most catalogues need
+ * this for a handful of items, India Grace for nearly all of them.
+ */
+async function enrichFromProductPages(host: string, products: ScrapedProduct[]) {
+  const todo = products.filter((p) => !p.fibreComposition && !p.exclusionReason);
+  if (todo.length === 0) return;
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: 4 }, async () => {
+      while (next < todo.length) {
+        const product = todo[next++];
+        try {
+          const res = await fetch(`https://${host}/products/${product.handle}?country=GB`, {
+            headers: PAGE_HEADERS,
+            cache: "no-store",
+          });
+          if (!res.ok) continue;
+          const section = fabricSection(await res.text());
+          if (!section) continue;
+          product.fibreComposition = extractComposition(section);
+          product.fabricDetails ??= fabricDetails(section);
+        } catch {
+          // A page that won't load just leaves the composition blank for the vendor.
+        }
+      }
+    })
+  );
+}
+
+/**
+ * The part of a product page that talks about fabric: the text following a
+ * heading like "Fabric content", "Composition" or "Materials", up to the next
+ * heading or a sensible length. Related products further down the page have
+ * compositions of their own, so we never scan the whole document.
+ */
+export function fabricSection(html: string): string | null {
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>|<\/(p|li|div|h[1-6]|tr|summary|button)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .replace(/[ \t]+/g, " ");
+  const m = text.match(
+    /(fabric (?:content|composition|& care|and care)|composition|materials?|fibre content|fiber content)\s*:?\s*\n?([\s\S]{0,600})/i
+  );
+  if (!m) return null;
+  // Stop at the care instructions or the next shouted heading.
+  const body = m[2].split(/\n\s*(care instructions|care|shipping|delivery|returns|size guide|sizing)\b/i)[0];
+  return /\d{1,3}\s*%/.test(body) ? body : null;
 }

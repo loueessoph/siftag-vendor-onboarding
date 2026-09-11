@@ -15,10 +15,11 @@ import {
   TheEvent,
   YourSpace,
 } from "@/components/vendor-info";
-import { STEPS, type StepSlug } from "@/lib/steps";
+import { STEPS, stepsFor, type StepSlug } from "@/lib/steps";
+import { KEY_DATES, listEditable, stockArrivalFor } from "@/lib/dates";
 import { formatDate } from "@/lib/dates";
 import { vendorPath } from "@/lib/brands";
-import { getVendorByToken, type VendorContext } from "@/lib/vendor";
+import { getVendorByToken, type VendorContext, signedExternally } from "@/lib/vendor";
 import { DispatchForm, PostsForm, WeekendForm } from "@/components/vendor/forms";
 import { listDeliveries } from "@/lib/vendor";
 import { Selector } from "@/components/vendor/selector";
@@ -63,20 +64,22 @@ export default async function StepPage({
 
   if (stepSlug === "information") return <InformationPage base={base} />;
 
-  const index = STEPS.findIndex((s) => s.slug === stepSlug);
+  const steps = stepsFor(context.brand);
+  const index = steps.findIndex((s) => s.slug === stepSlug);
   if (index === -1) notFound();
 
-  const step = STEPS[index];
+  const step = steps[index];
   const status = context.progress[step.slug];
 
   return (
     <StepShell
+      wide={step.slug === "products"}
       base={base}
       step={step}
       state={status.state}
       detail={status.detail}
-      prev={STEPS[index - 1]}
-      next={STEPS[index + 1]}
+      prev={steps[index - 1]}
+      next={steps[index + 1]}
     >
       <StepBody
         slug={step.slug}
@@ -88,7 +91,7 @@ export default async function StepPage({
         saved={saved}
         products={
           step.slug === "products"
-            ? await getSelectorProducts(context.brand.id)
+            ? await getSelectorProducts(context.brand)
             : []
         }
         deliveries={
@@ -154,6 +157,7 @@ function StepBody({
                   : undefined
               }
               signedBy={brand.agreement_signed_name ?? undefined}
+              signedExternally={signedExternally(brand)}
             />
           </div>
         </div>
@@ -164,7 +168,13 @@ function StepBody({
         <Selector
           token={token}
           initialProducts={products}
-          locked={brand.submission_status === "submitted"}
+          locked={!listEditable()}
+          deadline={KEY_DATES.productList}
+          submittedAt={brand.submitted_at}
+          changedSinceSubmit={
+            brand.submitted_at != null &&
+            brand.submission_status !== "submitted"
+          }
         />
       );
 
@@ -175,6 +185,7 @@ function StepBody({
           <div className="border-t border-neutral-200 py-14">
             <DispatchForm
               token={token}
+              due={stockArrivalFor(context.brand.is_international)}
               deliveries={deliveries}
               error={error}
               saved={saved === "1"}

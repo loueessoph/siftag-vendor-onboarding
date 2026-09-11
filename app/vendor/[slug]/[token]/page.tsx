@@ -34,15 +34,14 @@ export default async function VendorHub({
   await markOpened(brand);
 
   const base = vendorPath(brand.slug, token);
-  const steps = stepsWithStatus(progress);
+  const steps = stepsWithStatus(progress, brand);
   const done = completedCount(progress);
-  const next = nextAction(progress);
+  const next = nextAction(progress, brand);
   const outstanding = steps.length - done;
   // "Welcome back" is earned by having done something, not by having loaded
   // the page before. Until the agreement is signed a brand is still arriving,
   // however many times they've looked.
   const started = brand.agreement_status === "signed";
-  const firstName = brand.contact_name?.split(" ")[0];
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
@@ -50,14 +49,12 @@ export default async function VendorHub({
         <SiteHeader />
 
         <Section first>
-          <Eyebrow>{brand.name}</Eyebrow>
-          {/* The one place a fourth visit should not look like the first. */}
+          <Eyebrow>Siftag at Fabrica X</Eyebrow>
+          {/* The one place a fourth visit should not look like the first.
+              Greeted as the brand, not the contact: the link is shared
+              around a studio, and whoever opens it is here for the brand. */}
           <PageHeading>
-            {!started
-              ? "You're in."
-              : firstName
-              ? `Welcome back, ${firstName}.`
-              : "Welcome back."}
+            {!started ? `You're in, ${brand.name}.` : `Welcome back, ${brand.name}.`}
           </PageHeading>
           <div className="mt-5">
             <Muted>
@@ -71,9 +68,22 @@ export default async function VendorHub({
           {/* Payment happened on the reservation site before they got here.
               Settled, so it's context: not one of the four steps. */}
           <p className="mt-6 text-[11px] uppercase tracking-[0.15em] text-neutral-500">
-            <span className="text-neutral-900">£{brand.fee_gbp} fee</span> ·{" "}
-            {brand.commission_pct}% commission on sales
+            <span className="text-neutral-900">
+              {Number(brand.fee_gbp) > 0 ? `£${brand.fee_gbp} fee` : "No participation fee"}
+              {brand.deposit_gbp != null &&
+                Number(brand.deposit_gbp) < Number(brand.fee_gbp) &&
+                `, £${brand.deposit_gbp} paid up front`}
+            </span>{" "}
+            ·{" "}
+            {brand.commission_pct}% commission on pop-up sales
           </p>
+          {/* Anything agreed that the standard line can't say: a deposit
+              settled from sales, a separate rate for marketplace sales. */}
+          {brand.payment_terms_note && (
+            <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+              {brand.payment_terms_note}
+            </p>
+          )}
         </Section>
 
         <Section>

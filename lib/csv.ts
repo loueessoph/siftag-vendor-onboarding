@@ -3,11 +3,12 @@
  * at least one.
  *
  * Accepts the columns a brand can actually produce from a spreadsheet:
- * title, sku, size, colour, price, image_url. Rows sharing a title are folded
+ * title, sku, size, colour, price, image_url, composition. Rows sharing a title are folded
  * into one product with several variants, which is how a size run arrives.
  */
 
 import type { ScrapedProduct, ScrapedVariant } from "./shopify";
+import { extractComposition, fabricDetails } from "./fibre";
 
 /** Minimal RFC 4180 reader: handles quoted fields and embedded commas. */
 export function parseCsv(text: string): string[][] {
@@ -51,6 +52,7 @@ const ALIASES: Record<string, string[]> = {
   colour: ["colour", "color", "option2"],
   price: ["price", "rrp", "retail price", "online price"],
   image_url: ["image_url", "image", "image url", "photo", "img"],
+  composition: ["composition", "fibre composition", "fiber composition", "fabric", "fibre", "fiber", "material", "materials"],
 };
 
 function mapHeaders(header: string[]): Record<string, number> {
@@ -101,6 +103,8 @@ export function productsFromCsv(text: string): ScrapedProduct[] {
         imageUrl: get(row, "image_url"),
         productType: null,
         exclusionReason: null,
+        fibreComposition: null,
+        fabricDetails: null,
         variants: [],
       };
       byTitle.set(title, product);
@@ -117,6 +121,11 @@ export function productsFromCsv(text: string): ScrapedProduct[] {
     };
     product.variants.push(variant);
     if (!product.imageUrl) product.imageUrl = get(row, "image_url");
+    if (!product.fibreComposition) {
+      const composition = get(row, "composition");
+      product.fibreComposition = composition ? extractComposition(composition) : null;
+      product.fabricDetails = composition ? fabricDetails(composition) : null;
+    }
   });
 
   const products = [...byTitle.values()];
