@@ -30,7 +30,7 @@ export function SubmissionReviewList({
   returnTo: string;
 }) {
   return (
-    <div className="space-y-px">
+    <div className="space-y-4">
       {review.products.map((product) => (
         <ReviewCard
           key={product.productId ?? product.title}
@@ -139,11 +139,7 @@ function ReviewCard({
     <article
       id={product.productId ? `product-${product.productId}` : undefined}
       className={`border p-5 ${
-        product.approvalStatus === "rejected"
-          ? "border-red-600"
-          : product.approvalStatus === "approved"
-          ? "border-neutral-900"
-          : "border-neutral-200"
+        product.approvalStatus === "rejected" ? "border-red-600" : "border-neutral-200"
       }`}
     >
       <div className="flex items-start gap-6">

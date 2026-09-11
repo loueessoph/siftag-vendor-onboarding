@@ -123,11 +123,18 @@ export function deriveColour(
 
 /* Options ------------------------------------------------------------------ */
 
-/** Maps Shopify's positional option1/2/3 onto named size and colour. */
+/**
+ * Maps Shopify's positional option1/2/3 onto named size and colour. Any
+ * other option (Dress length: Mini/Knee, Fit: Regular/Long) is folded into
+ * the size label, "XS / Mini", so two variants never look identical. A
+ * one-value option like "Fit: Regular" on every variant adds nothing and is
+ * left out.
+ */
 function readOptions(product: RawProduct, variant: RawVariant) {
   const values = [variant.option1, variant.option2, variant.option3];
   let size: string | null = null;
   let colour: string | null = null;
+  const extra: string[] = [];
 
   product.options.forEach((option, i) => {
     const name = option.name.trim().toLowerCase();
@@ -135,9 +142,13 @@ function readOptions(product: RawProduct, variant: RawVariant) {
     if (!value) return;
     if (name === "size") size = value;
     else if (name === "color" || name === "colour") colour = value;
+    else if (option.values.length > 1 && value.toLowerCase() !== "default title") {
+      extra.push(value);
+    }
   });
 
-  return { size, colour };
+  const label = [size, ...extra].filter(Boolean).join(" / ");
+  return { size: label || null, colour };
 }
 
 /* Exclusions --------------------------------------------------------------- */

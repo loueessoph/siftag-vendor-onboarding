@@ -188,13 +188,17 @@ function readVariations(html: string): RawVariation[] {
 function sizeAndColour(attributes: Record<string, string>) {
   let size: string | null = null;
   let colour: string | null = null;
+  const extra: string[] = [];
   for (const [key, value] of Object.entries(attributes)) {
     if (!value) continue;
     const name = key.replace(/^attribute_(pa_)?/, "").toLowerCase();
     if (/size/.test(name) && !size) size = unslug(value);
     else if (/colou?r/.test(name) && !colour) colour = unslug(value);
+    else extra.push(unslug(value));
   }
-  return { size, colour };
+  // Any other attribute (length, fit) joins the size so variants stay distinct.
+  const label = [size, ...extra].filter(Boolean).join(" / ");
+  return { size: label || null, colour };
 }
 
 /**

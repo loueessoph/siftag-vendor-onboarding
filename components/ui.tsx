@@ -25,7 +25,7 @@ export function Container({
     <div
       className={
         wide
-          ? "mx-auto max-w-admin px-6"
+          ? "mx-auto max-w-5xl px-6"
           : "mx-auto max-w-xl px-6 lg:max-w-2xl"
       }
     >

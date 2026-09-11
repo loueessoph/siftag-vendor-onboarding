@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button, Input, Select } from "@/components/ui";
+import { Input, Select, TextButton } from "@/components/ui";
 import {
   FIBRES,
   FIBRE_KIND_LABEL,
@@ -187,14 +187,9 @@ export function CompositionEditor({
 
       {!locked && (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            onClick={() => setRows((prev) => [...prev, emptyRow()])}
-          >
+          <TextButton onClick={() => setRows((prev) => [...prev, emptyRow()])}>
             Add a fibre
-          </Button>
+          </TextButton>
           {rows.length > 1 && (
             <span
               className={`text-xs ${

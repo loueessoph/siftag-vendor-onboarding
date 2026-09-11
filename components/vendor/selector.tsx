@@ -198,24 +198,42 @@ export function Selector({
   const removeVariant = useCallback(
     async (productId: string, variantId: string) => {
       setRemoveError(null);
-      const res = await fetch("/api/vendor/items/sizes", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, variantId }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setRemoveError(data.error ?? "Could not remove that size.");
-        return;
-      }
+      // Optimistic: the row goes at once and comes back only if the server
+      // says no. Waiting for the round trip made the × look dead.
+      let removed: SelectorVariant | undefined;
       setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId
-            ? { ...p, variants: p.variants.filter((v) => v.id !== variantId) }
-            : p
-        )
+        prev.map((p) => {
+          if (p.id !== productId) return p;
+          removed = p.variants.find((v) => v.id === variantId);
+          return { ...p, variants: p.variants.filter((v) => v.id !== variantId) };
+        })
       );
-      setChanged(true);
+      setSave("saving");
+      try {
+        const res = await fetch("/api/vendor/items/sizes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, variantId }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? "Could not remove that size.");
+        }
+        setSave("saved");
+        setSavedAt(new Date());
+        setChanged(true);
+      } catch (e) {
+        setSave("error");
+        setRemoveError(e instanceof Error ? e.message : "Could not remove that size.");
+        if (removed) {
+          const back = removed;
+          setProducts((prev) =>
+            prev.map((p) =>
+              p.id === productId ? { ...p, variants: [...p.variants, back] } : p
+            )
+          );
+        }
+      }
     },
     [token]
   );
@@ -229,18 +247,26 @@ export function Selector({
   const removeCustom = useCallback(
     async (product: SelectorProduct) => {
       setRemoveError(null);
-      const res = await fetch("/api/vendor/items", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, productId: product.id }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setRemoveError(data.error ?? "Could not remove that item.");
-        return;
-      }
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
-      setChanged(true);
+      setSave("saving");
+      try {
+        const res = await fetch("/api/vendor/items", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, productId: product.id }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? "Could not remove that item.");
+        }
+        setSave("saved");
+        setSavedAt(new Date());
+        setChanged(true);
+      } catch (e) {
+        setSave("error");
+        setRemoveError(e instanceof Error ? e.message : "Could not remove that item.");
+        setProducts((prev) => [...prev, product]);
+      }
     },
     [token]
   );
@@ -357,7 +383,7 @@ export function Selector({
       )}
 
       {sentView ? (
-        <div className="mt-8 space-y-px">
+        <div className="mt-8 space-y-4">
           {products
             .filter((p) => p.variants.some((v) => v.selected))
             .map((product) => (
@@ -424,7 +450,7 @@ export function Selector({
             </label>
           </div>
 
-          <div className="mt-8 space-y-px">
+          <div className="mt-8 space-y-4">
             {visible.map((product) => (
               <ProductRow
                 key={product.id}
@@ -704,11 +730,7 @@ function SentCard({ product }: { product: SelectorProduct }) {
   return (
     <article
       className={`border p-5 ${
-        decided
-          ? approved
-            ? "border-neutral-900"
-            : "border-red-600"
-          : "border-neutral-200"
+        decided && !approved ? "border-red-600" : "border-neutral-200"
       }`}
     >
       <div className="flex items-start gap-6">
@@ -870,11 +892,7 @@ function ProductRow({
   return (
     <article
       className={`border p-5 transition-colors ${
-        belowThreshold && selected
-          ? "border-red-600"
-          : selected
-          ? "border-neutral-900"
-          : "border-neutral-200"
+        belowThreshold && selected ? "border-red-600" : "border-neutral-200"
       }`}
     >
       <div className="flex items-start gap-5">
@@ -1018,6 +1036,14 @@ function NotesField({
   ) => void;
 }) {
   const { fabric, own } = splitNotes(product.notes);
+  const [open, setOpen] = useState(false);
+  if (!own.trim() && !open) {
+    return locked ? null : (
+      <div>
+        <TextButton onClick={() => setOpen(true)}>Add a note for Siftag</TextButton>
+      </div>
+    );
+  }
   return (
     <div>
       <label className="block">
@@ -1028,7 +1054,8 @@ function NotesField({
           rows={2}
           value={own}
           disabled={locked}
-          placeholder="Optional. Care, sizing, anything we should know about this item."
+          autoFocus={open && !own.trim()}
+          placeholder="Care, sizing, anything we should know about this item."
           className="mt-1.5"
           onChange={(e) => {
             const notes = joinNotes(fabric, e.target.value);
@@ -1332,6 +1359,10 @@ function FibreField({
   const pct = product.naturalFibrePct;
   const below = pct != null && pct < MINIMUM_NATURAL_PCT;
   const fabric = splitNotes(product.notes).fabric;
+  // With the website's statement in hand the editor is a correction tool,
+  // so it stays out of the way until asked for.
+  const [correcting, setCorrecting] = useState(false);
+  const showEditor = !fabric || correcting || !!product.fibreComposition;
 
   const onText = useCallback(
     (text: string) => {
@@ -1356,33 +1387,30 @@ function FibreField({
       {fabric && (
         <div className="mt-1.5 bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
           <p>{fabric}</p>
-          <p className="mt-1 text-xs text-neutral-500">
-            Copied from your website because it lists the fabric part by
-            part, like body, trim or lining. Nothing to add below unless
-            it&apos;s wrong.
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-neutral-500">
+            <span>From your website, part by part.</span>
+            {!showEditor && !locked && (
+              <TextButton onClick={() => setCorrecting(true)}>Correct it</TextButton>
+            )}
           </p>
         </div>
       )}
-      <div className="mt-1.5">
-        <CompositionEditor
-          value={product.fibreComposition}
-          locked={locked}
-          invalid={below}
-          onChange={onText}
-        />
-      </div>
+      {showEditor && (
+        <div className="mt-1.5">
+          <CompositionEditor
+            value={product.fibreComposition}
+            locked={locked}
+            invalid={below}
+            onChange={onText}
+          />
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        {pct != null && (
-          <span className={below ? "text-red-600" : "text-neutral-500"}>
-            Read as <strong className="font-medium">{pct}% natural</strong>
-            {below &&
-              `: the event needs at least ${MINIMUM_NATURAL_PCT}%, so this can't be sold`}
-          </span>
-        )}
-        {pct == null && !product.fibreComposition && !fabric && (
-          <span className="text-neutral-500">
-            Pick each fibre and its share. They should add up to 100%.
+        {/* The natural share is only spoken of when it's a problem. */}
+        {showEditor && below && (
+          <span className="text-red-600">
+            {pct}% natural: the event needs at least {MINIMUM_NATURAL_PCT}%, so this can&apos;t be sold.
           </span>
         )}
         {reading?.unknown.length ? (
@@ -1483,6 +1511,17 @@ function AddSizeRow({
   const [size, setSize] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <div className="mt-3">
+        <TextButton onClick={() => setOpen(true)}>
+          {colour ? `Add a size to ${colour}` : "Add a size"}
+        </TextButton>
+      </div>
+    );
+  }
 
   async function add() {
     if (!size.trim()) return;
@@ -1509,6 +1548,7 @@ function AddSizeRow({
     <div className="mt-3">
       <div className="flex flex-wrap items-center gap-2">
         <input
+          autoFocus
           value={size}
           onChange={(e) => setSize(e.target.value)}
           onKeyDown={(e) => {
@@ -1516,14 +1556,16 @@ function AddSizeRow({
               e.preventDefault();
               add();
             }
+            if (e.key === "Escape") setOpen(false);
           }}
           placeholder="Another size, e.g. XXL"
           aria-label={colour ? `Add a size in ${colour}` : "Add a size"}
           className="w-52 border border-neutral-300 px-2 py-1.5 text-sm placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
         />
         <Button size="small" variant="secondary" disabled={busy || !size.trim()} onClick={add}>
-          {busy ? "Adding…" : colour ? `Add to ${colour}` : "Add a size"}
+          {busy ? "Adding…" : "Add"}
         </Button>
+        <TextButton onClick={() => setOpen(false)}>Cancel</TextButton>
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
@@ -1546,7 +1588,16 @@ function AddColourRow({
   const [colour, setColour] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const sizes = [...new Set(product.variants.map((v) => v.size ?? ""))];
+
+  if (!open) {
+    return (
+      <div className="mt-3">
+        <TextButton onClick={() => setOpen(true)}>Add a colour</TextButton>
+      </div>
+    );
+  }
 
   async function add() {
     const name = colour.trim();
@@ -1580,6 +1631,7 @@ function AddColourRow({
     <div className="mt-4">
       <div className="flex flex-wrap items-center gap-2">
         <input
+          autoFocus
           value={colour}
           onChange={(e) => setColour(e.target.value)}
           onKeyDown={(e) => {
@@ -1587,14 +1639,16 @@ function AddColourRow({
               e.preventDefault();
               add();
             }
+            if (e.key === "Escape") setOpen(false);
           }}
           placeholder="Another colour, e.g. Rust"
           aria-label="Add a colour"
           className="w-52 border border-neutral-300 px-2 py-1.5 text-sm placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
         />
         <Button size="small" variant="secondary" disabled={busy || !colour.trim()} onClick={add}>
-          {busy ? "Adding…" : `Add a colour in ${plural(sizes.length, "size")}`}
+          {busy ? "Adding…" : `Add in ${plural(sizes.length, "size")}`}
         </Button>
+        <TextButton onClick={() => setOpen(false)}>Cancel</TextButton>
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
@@ -1794,12 +1848,9 @@ function SizeTable({
         />
       )}
 
-      <div className="mt-2">
-        <Muted>
-          Prices start at your online price. Change them if your pop-up price
-          differs.
-        </Muted>
-      </div>
+      <p className="mt-2 text-xs text-neutral-500">
+        Prices are from your website. Change any that differ at the pop-up.
+      </p>
     </div>
   );
 }
