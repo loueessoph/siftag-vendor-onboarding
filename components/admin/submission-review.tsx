@@ -81,7 +81,7 @@ function SizeTable({ variants }: { variants: SubmittedProduct["variants"] }) {
         <tr className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
           <th className="pb-2 text-left font-normal">Size</th>
           <th className="pb-2 text-right font-normal">Qty</th>
-          <th className="pb-2 text-right font-normal">Pop-up price</th>
+          <th className="pb-2 text-right font-normal">Price</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-neutral-200 border-y border-neutral-200">

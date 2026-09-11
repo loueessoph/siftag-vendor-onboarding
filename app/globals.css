@@ -12,3 +12,33 @@
     @apply rounded-none;
   }
 }
+
+/*
+ * Checkboxes: a filled black square with a bold white tick, softly rounded.
+ * The one rounded control in the app, by request; everything else stays
+ * square. Native accent colour can't give a white tick on black reliably
+ * across browsers, so this replaces the native drawing.
+ */
+@layer components {
+  .checkbox {
+    @apply h-5 w-5 shrink-0 cursor-pointer appearance-none rounded-[4px] border-[1.5px] border-neutral-400 bg-white transition-colors;
+  }
+  .checkbox:hover:not(:disabled) {
+    @apply border-neutral-900;
+  }
+  .checkbox:focus-visible {
+    @apply outline-none ring-2 ring-neutral-900 ring-offset-2;
+  }
+  .checkbox:checked {
+    @apply border-neutral-900 bg-neutral-900;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M5 10.5l3.5 3.5L15 7' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+  .checkbox:disabled {
+    @apply cursor-not-allowed border-neutral-300 bg-neutral-100;
+  }
+  .checkbox:disabled:checked {
+    @apply border-neutral-400 bg-neutral-400;
+  }
+}

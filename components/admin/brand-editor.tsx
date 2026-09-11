@@ -119,7 +119,7 @@ export function BrandEditor({
             type="checkbox"
             name="is_international"
             defaultChecked={brand.is_international}
-            className="h-4 w-4 accent-neutral-900"
+            className="checkbox"
           />
           <span className="text-sm text-neutral-500">
             International brand, Siftag covers shipping both ways

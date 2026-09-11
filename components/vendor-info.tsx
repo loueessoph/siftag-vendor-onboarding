@@ -231,7 +231,7 @@ export function KeyDates() {
         evenSplit
         rows={[
           { label: "From 18 August", value: "We can receive your stock" },
-          { label: "14 September", value: "Product list due (anywhere on earth)" },
+          { label: "14 September", value: "Product list due" },
           { label: "18 September", value: "All stock from UK brands must have arrived" },
           {
             label: "20 September",

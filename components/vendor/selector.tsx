@@ -791,7 +791,7 @@ function SentCard({ product }: { product: SelectorProduct }) {
               <tr className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
                 <th className="pb-2 text-left font-normal">Size</th>
                 <th className="pb-2 text-right font-normal">Qty</th>
-                <th className="pb-2 text-right font-normal">Pop-up £</th>
+                <th className="pb-2 text-right font-normal">Price</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 border-y border-neutral-200">
@@ -952,7 +952,7 @@ function ProductRow({
                     type="checkbox"
                     checked={selected}
                     onChange={(e) => onToggle(e.target.checked)}
-                    className="h-4 w-4 accent-neutral-900"
+                    className="checkbox"
                   />
                   <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">
                     Bringing
@@ -1645,7 +1645,7 @@ function SizeTable({
                   0
                 )
               }
-              className="h-3.5 w-3.5 accent-neutral-900"
+              className="checkbox"
             />
             <span className={variant.selected ? "" : "text-neutral-400"}>
               {variant.size ?? "One size"}
@@ -1709,7 +1709,7 @@ function SizeTable({
   return (
     <div>
       <div className="grid grid-cols-[1fr_5rem_6rem_1.5rem] gap-3 border-b border-neutral-200 pb-2">
-        {[groups ? "Variant" : "Size", "Qty", "Pop-up price", ""].map((h) => (
+        {[groups ? "Variant" : "Size", "Qty", "Price", ""].map((h) => (
           <span
             key={h}
             className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-900"

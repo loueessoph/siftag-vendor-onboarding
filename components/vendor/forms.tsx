@@ -285,7 +285,7 @@ export function WeekendForm({
                   name="days"
                   value={day.value}
                   defaultChecked={attendingDays.includes(day.value)}
-                  className="h-4 w-4 accent-neutral-900"
+                  className="checkbox"
                 />
                 <span className="text-sm">{day.label}</span>
               </label>
