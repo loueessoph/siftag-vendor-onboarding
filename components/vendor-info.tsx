@@ -159,14 +159,30 @@ export function YourProductList() {
   );
 }
 
-export function HowYouGetPaid() {
+/** Formats 10 as "10" and 12.5 as "12.5", never "10.00". */
+function pct(value: number): string {
+  return String(Number(value));
+}
+
+/**
+ * Terms differ per brand (some are at 0%, some at 30%), so the vendor page
+ * passes that brand's rate. The public page has no brand and shows the
+ * standard 10%.
+ */
+export function HowYouGetPaid({
+  commissionPct = 10,
+}: {
+  commissionPct?: number;
+}) {
+  const kept = pct(100 - Number(commissionPct));
+  const retained = pct(commissionPct);
   return (
     <Section id="paid">
       <SectionHeading>How you get paid</SectionHeading>
       <Bullets>
         <Bullet>
-          You keep <Strong>90% of your sales</Strong>. Siftag retains 10%
-          commission.
+          You keep <Strong>{kept}% of your sales</Strong>. Siftag retains{" "}
+          {retained}% commission.
         </Bullet>
         <Bullet>
           <Strong>Card processing fees are deducted on top</Strong> of the

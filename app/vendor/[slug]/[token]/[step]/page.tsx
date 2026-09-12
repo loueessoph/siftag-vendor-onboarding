@@ -62,7 +62,13 @@ export default async function StepPage({
 
   const base = vendorPath(context.brand.slug, token);
 
-  if (stepSlug === "information") return <InformationPage base={base} />;
+  if (stepSlug === "information")
+    return (
+      <InformationPage
+        base={base}
+        commissionPct={Number(context.brand.commission_pct)}
+      />
+    );
 
   const steps = stepsFor(context.brand);
   const index = steps.findIndex((s) => s.slug === stepSlug);
@@ -221,7 +227,13 @@ function StepBody({
 }
 
 /** Everything that isn't a task: the reference half of the vendor pack. */
-function InformationPage({ base }: { base: string }) {
+function InformationPage({
+  base,
+  commissionPct,
+}: {
+  base: string;
+  commissionPct: number;
+}) {
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       <Container>
@@ -247,7 +259,7 @@ function InformationPage({ base }: { base: string }) {
         </section>
         <TheEvent />
         <YourSpace />
-        <HowYouGetPaid />
+        <HowYouGetPaid commissionPct={commissionPct} />
         <KeyDates />
         <QuestionsWeGetAsked />
         <SiteFooter />
