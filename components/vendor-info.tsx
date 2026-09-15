@@ -20,6 +20,7 @@ import {
   SectionHeading,
   Strong,
 } from "@/components/ui";
+import { KEY_DATES, formatDate } from "@/lib/dates";
 
 export function TheEvent() {
   return (
@@ -93,6 +94,16 @@ export function GettingStockToUs() {
           London N1 9AB. The FAO line matters: the venue takes deliveries for
           several tenants, so anything not addressed to Siftag may not reach us.
         </Muted>
+        <Muted>
+          Delivery contact: <Strong>Sophie Lewis</Strong>,{" "}
+          <Strong>
+            <a href="tel:+447821507528" className="underline">
+              +44 7821 507528
+            </a>
+          </Strong>
+          . Put this name and number on the courier form so the driver can
+          reach us on the day.
+        </Muted>
       </div>
       <Bullets>
         <Bullet>
@@ -125,7 +136,9 @@ export function GettingStockToUs() {
 export function YourProductList() {
   return (
     <Section id="product-list">
-      <SectionHeading>Your product list, due 14 September</SectionHeading>
+      <SectionHeading>
+        Your product list, due {formatDate(KEY_DATES.productListExtended)}
+      </SectionHeading>
       <div className="mt-6 space-y-4">
         <Muted>
           Everything you&apos;re selling has to be on your list before the
