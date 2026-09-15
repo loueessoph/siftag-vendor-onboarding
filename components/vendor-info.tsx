@@ -89,20 +89,27 @@ export function GettingStockToUs() {
         <Muted>
           <Strong>Ship it or drop it off: both work.</Strong>
         </Muted>
-        <Muted>
-          Send to: <Strong>FAO Siftag</Strong>, Fabrica X, 36–40 York Way,
-          London N1 9AB. The FAO line matters: the venue takes deliveries for
-          several tenants, so anything not addressed to Siftag may not reach us.
-        </Muted>
-        <Muted>
-          Delivery contact: <Strong>Sophie Lewis</Strong>,{" "}
-          <Strong>
-            <a href="tel:+447821507528" className="underline">
+        <Muted>Send to:</Muted>
+        <address className="border border-neutral-200 px-5 py-4 text-[15px] not-italic leading-relaxed text-neutral-900">
+          <span className="block font-medium">FAO Siftag</span>
+          <span className="block">Fabrica X</span>
+          <span className="block">36–40 York Way</span>
+          <span className="block">London N1 9AB</span>
+          <span className="mt-3 block border-t border-neutral-200 pt-3">
+            <span className="block text-[11px] uppercase tracking-[0.15em] text-neutral-500">
+              Delivery contact
+            </span>
+            <span className="block">Sophie Lewis</span>
+            <a href="tel:+447821507528" className="block underline">
               +44 7821 507528
             </a>
-          </Strong>
-          . Put this name and number on the courier form so the driver can
-          reach us on the day.
+          </span>
+        </address>
+        <Muted>
+          The FAO line matters: the venue takes deliveries for several tenants,
+          so anything not addressed to Siftag may not reach us. Put the contact
+          name and number on the courier form so the driver can reach us on the
+          day.
         </Muted>
       </div>
       <Bullets>
