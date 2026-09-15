@@ -118,7 +118,7 @@ so there is exactly one per brand. A save after submitting drops
 `submission_status` back to `in_progress` while `submitted_at` stays set: that
 combination means "submitted, then edited, not yet re-submitted", and the hub
 and admin both say so. `listEditable()` in `lib/dates.ts` is the single gate,
-checked by the save and submit routes and the page; it closes at the end of the deadline day anywhere on earth (UTC-12).
+checked by the save and submit routes and the page. The list was extended after 14 September and now closes at 23:59 BST on 16 September (`KEY_DATES.productListExtended`); the agreement and the original emails still say 14 September.
 
 **The 90% natural fibre rule** is clause 4.2 and a condition of approval.
 `lib/fibre.ts` reads a percentage out of whatever the vendor types, treats

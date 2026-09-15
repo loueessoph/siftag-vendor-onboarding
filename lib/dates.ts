@@ -2,6 +2,10 @@
 export const KEY_DATES = {
   stockWindowOpens: "2026-08-18",
   productList: "2026-09-14",
+  // The product list was extended after the 14th passed. `productList` stays
+  // as the date in the signed agreement and the original emails; this is the
+  // date brands are now told, and the day the portal actually closes.
+  productListExtended: "2026-09-16",
   // Stock has two deadlines: UK brands ship domestically and can cut it
   // finer; international parcels clear customs, so they get the earlier
   // date on the customs side and the later one on ours.
@@ -58,13 +62,13 @@ export function deadlineLabel(iso: string, from: Date = new Date()): string {
 }
 
 /**
- * The last instant a product list may change: the end of the deadline day
- * "anywhere on earth" (UTC-12), so a brand in any time zone who submits on
- * the 14th by their own clock is in time. In London that is 12:59 on the
- * 15th.
+ * The last instant a product list may change: 23:59:59 BST (UTC+1) on the
+ * extended deadline day. The original close was the end of the 14th
+ * "anywhere on earth" (UTC-12), 12:59 on the 15th in London; the extension
+ * is a fixed London time instead, so it reads the same to us and to brands.
  */
 export const PRODUCT_LIST_CLOSES = new Date(
-  `${KEY_DATES.productList}T23:59:59.999-12:00`
+  `${KEY_DATES.productListExtended}T23:59:59.999+01:00`
 );
 
 /**

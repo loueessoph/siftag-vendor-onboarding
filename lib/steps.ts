@@ -54,7 +54,7 @@ export const STEPS: StepDefinition[] = [
     slug: "products",
     title: "Send us your product list",
     blurb: "Pick what you're bringing from your own catalogue.",
-    due: KEY_DATES.productList,
+    due: KEY_DATES.productListExtended,
     priority: 1,
   },
   {

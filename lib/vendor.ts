@@ -71,7 +71,7 @@ function buildProgress(
   const submittedOn = brand.submitted_at
     ? ` ${formatDate(brand.submitted_at.slice(0, 10))}`
     : "";
-  const deadline = formatDate(KEY_DATES.productList);
+  const deadline = formatDate(KEY_DATES.productListExtended);
   const decided = stats.approved + stats.rejected;
   const decisions =
     decided > 0

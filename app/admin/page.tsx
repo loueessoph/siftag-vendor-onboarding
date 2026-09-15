@@ -33,7 +33,7 @@ export default async function AdminHome() {
   return (
     <AdminShell
       back={null}
-      eyebrow={deadlineLabel(KEY_DATES.productList)}
+      eyebrow={deadlineLabel(KEY_DATES.productListExtended)}
       title={
         brands.length === 0
           ? "No brands yet"

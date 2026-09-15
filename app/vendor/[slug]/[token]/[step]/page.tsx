@@ -175,7 +175,7 @@ function StepBody({
           token={token}
           initialProducts={products}
           locked={!listEditable()}
-          deadline={KEY_DATES.productList}
+          deadline={KEY_DATES.productListExtended}
           submittedAt={brand.submitted_at}
           changedSinceSubmit={
             brand.submitted_at != null &&
