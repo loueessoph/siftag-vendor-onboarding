@@ -81,11 +81,15 @@ export function YourSpace() {
   );
 }
 
-export function GettingStockToUs() {
+/**
+ * `heading` is off on the vendor step page, where the step shell has already
+ * put "Get your stock to us" at the top and a second title reads as a repeat.
+ */
+export function GettingStockToUs({ heading = true }: { heading?: boolean }) {
   return (
     <Section id="stock">
-      <SectionHeading>Getting your stock to us</SectionHeading>
-      <div className="mt-6 space-y-4">
+      {heading && <SectionHeading>Getting your stock to us</SectionHeading>}
+      <div className={heading ? "mt-6 space-y-4" : "space-y-4"}>
         <Muted>
           <Strong>Ship it or drop it off: both work.</Strong>
         </Muted>
@@ -240,11 +244,11 @@ export function OnTheDay() {
   );
 }
 
-export function Marketing() {
+export function Marketing({ heading = true }: { heading?: boolean }) {
   return (
     <Section>
-      <SectionHeading>Marketing</SectionHeading>
-      <div className="mt-6 space-y-4">
+      {heading && <SectionHeading>Marketing</SectionHeading>}
+      <div className={heading ? "mt-6 space-y-4" : "space-y-4"}>
         <Muted>
           We&apos;ll be promoting the lineup across Siftag&apos;s channels, with
           dedicated vendor features in the run-up.

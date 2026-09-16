@@ -187,7 +187,7 @@ function StepBody({
     case "stock":
       return (
         <div className="-mt-14">
-          <GettingStockToUs />
+          <GettingStockToUs heading={false} />
           <div className="border-t border-neutral-200 py-14">
             <DispatchForm
               token={token}
@@ -203,7 +203,7 @@ function StepBody({
     case "marketing":
       return (
         <div className="-mt-14">
-          <MarketingInfo />
+          <MarketingInfo heading={false} />
           <div className="border-t border-neutral-200 py-14">
             <PostsForm
               token={token}
