@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (!context) {
     return NextResponse.json({ error: "Unknown link" }, { status: 404 });
   }
-  if (!listEditable()) {
+  if (!listEditable(context.brand)) {
     return NextResponse.json(
       { error: "The product list deadline has passed, so your list is now fixed." },
       { status: 409 }

@@ -16,7 +16,7 @@ import {
   YourSpace,
 } from "@/components/vendor-info";
 import { STEPS, stepsFor, type StepSlug } from "@/lib/steps";
-import { KEY_DATES, listEditable, stockArrivalFor } from "@/lib/dates";
+import { listClosesFor, listEditable, stockArrivalFor } from "@/lib/dates";
 import { formatDate } from "@/lib/dates";
 import { vendorPath } from "@/lib/brands";
 import { getVendorByToken, type VendorContext, signedExternally } from "@/lib/vendor";
@@ -174,8 +174,8 @@ function StepBody({
         <Selector
           token={token}
           initialProducts={products}
-          locked={!listEditable()}
-          deadline={KEY_DATES.productListExtended}
+          locked={!listEditable(brand)}
+          deadline={listClosesFor(brand)}
           submittedAt={brand.submitted_at}
           changedSinceSubmit={
             brand.submitted_at != null &&

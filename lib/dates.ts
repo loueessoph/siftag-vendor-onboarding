@@ -72,13 +72,42 @@ export const PRODUCT_LIST_CLOSES = new Date(
 );
 
 /**
+ * Brands whose list we reopened after the close, keyed by slug, with the
+ * London day it shuts again for them (inclusive, same 23:59:59 rule as the
+ * main close). Everyone else stays closed: this is a favour granted one
+ * brand at a time, not a second extension, so it lives here next to the
+ * dates rather than in a column anyone could flip.
+ */
+export const LIST_REOPENED_UNTIL: Record<string, string> = {
+  // Jude needed to correct sizes after submitting on the last night.
+  hyli: "2026-09-23",
+};
+
+type ListBrand = { slug: string };
+
+/** The day a brand's product list closes: the event date, or their reopening. */
+export function listClosesFor(brand: ListBrand): string {
+  return LIST_REOPENED_UNTIL[brand.slug] ?? KEY_DATES.productListExtended;
+}
+
+function listClosesAt(brand: ListBrand | undefined): Date {
+  const reopened = brand && LIST_REOPENED_UNTIL[brand.slug];
+  return reopened
+    ? new Date(`${reopened}T23:59:59.999+01:00`)
+    : PRODUCT_LIST_CLOSES;
+}
+
+/**
  * Whether a brand may still change their product list. Submitting doesn't
  * close it: brands come back with a restock or a colour they forgot, and
  * until the tags are printed we would rather have the corrected list than
- * an email about it.
+ * an email about it. A brand we reopened for gets their own later close.
  */
-export function listEditable(from: Date = new Date()): boolean {
-  return from.getTime() <= PRODUCT_LIST_CLOSES.getTime();
+export function listEditable(
+  brand?: ListBrand,
+  from: Date = new Date()
+): boolean {
+  return from.getTime() <= listClosesAt(brand).getTime();
 }
 
 export function isUrgent(iso: string, from: Date = new Date()): boolean {

@@ -14,7 +14,7 @@ async function gate(token: string | undefined) {
   if (!token) return { error: NextResponse.json({ error: "Bad request" }, { status: 400 }) };
   const context = await getVendorByToken(token);
   if (!context) return { error: NextResponse.json({ error: "Unknown link" }, { status: 404 }) };
-  if (!listEditable()) {
+  if (!listEditable(context.brand)) {
     return {
       error: NextResponse.json(
         { error: "The product list deadline has passed, so your list is now fixed." },

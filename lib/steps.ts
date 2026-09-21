@@ -12,7 +12,7 @@
  * at any time; the numbering conveys order, not a gate.
  */
 
-import { KEY_DATES, stockArrivalFor } from "./dates";
+import { KEY_DATES, listClosesFor, stockArrivalFor } from "./dates";
 
 export type StepState =
   /** Finished. */
@@ -89,21 +89,26 @@ export type StepStatus = {
 
 export type VendorProgress = Record<StepSlug, StepStatus>;
 
+type StepBrand = { is_international: boolean; slug: string };
+
 /**
- * The steps with the stock deadline that applies to this brand. Everything
- * that shows a brand their dates goes through here rather than STEPS.
+ * The steps with the deadlines that apply to this brand: their stock date,
+ * and their product list close if we reopened it for them. Everything that
+ * shows a brand their dates goes through here rather than STEPS.
  */
-export function stepsFor(brand: { is_international: boolean }): StepDefinition[] {
+export function stepsFor(brand: StepBrand): StepDefinition[] {
   return STEPS.map((step) =>
     step.slug === "stock"
       ? { ...step, due: stockArrivalFor(brand.is_international) }
+      : step.slug === "products"
+      ? { ...step, due: listClosesFor(brand) }
       : step
   );
 }
 
 export function stepsWithStatus(
   progress: VendorProgress,
-  brand: { is_international: boolean }
+  brand: StepBrand
 ) {
   return stepsFor(brand).map((step) => ({ ...step, ...progress[step.slug] }));
 }
@@ -111,7 +116,7 @@ export function stepsWithStatus(
 /** The single thing to put at the top of the hub. */
 export function nextAction(
   progress: VendorProgress,
-  brand: { is_international: boolean }
+  brand: StepBrand
 ) {
   return (
     stepsWithStatus(progress, brand)

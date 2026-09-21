@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   // Submitted lists stay editable until the deadline; the page shows an
   // "update my list" button so the snapshot can be refreshed. After the
   // deadline the tags are being printed from it, so it's read-only.
-  if (!listEditable()) {
+  if (!listEditable(context.brand)) {
     return NextResponse.json(
       { error: "The product list deadline has passed, so your list is now fixed." },
       { status: 409 }

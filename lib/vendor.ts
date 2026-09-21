@@ -7,7 +7,7 @@
 import { supabaseAdmin } from "./supabase/server";
 import { catalogueStats, type BrandRow } from "./brands";
 import type { AgreementVars } from "@/content/agreement";
-import { KEY_DATES, formatDate, listEditable } from "./dates";
+import { KEY_DATES, formatDate, listClosesFor, listEditable } from "./dates";
 import { plural } from "./format";
 import type { StepSlug, VendorProgress } from "./steps";
 
@@ -67,11 +67,11 @@ function buildProgress(
   stats: Awaited<ReturnType<typeof catalogueStats>>
 ): VendorProgress {
   const signed = brand.agreement_status === "signed";
-  const editable = listEditable();
+  const editable = listEditable(brand);
   const submittedOn = brand.submitted_at
     ? ` ${formatDate(brand.submitted_at.slice(0, 10))}`
     : "";
-  const deadline = formatDate(KEY_DATES.productListExtended);
+  const deadline = formatDate(listClosesFor(brand));
   const decided = stats.approved + stats.rejected;
   const decisions =
     decided > 0
