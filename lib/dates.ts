@@ -80,7 +80,7 @@ export const PRODUCT_LIST_CLOSES = new Date(
  */
 export const LIST_REOPENED_UNTIL: Record<string, string> = {
   // Jude needed to correct sizes after submitting on the last night.
-  hyli: "2026-09-23",
+  hyli: "2026-09-21",
 };
 
 type ListBrand = { slug: string };
