@@ -30,6 +30,12 @@ export function AdminShell({
             <Link href="/admin/approvals" className="text-neutral-500 transition-colors hover:text-neutral-900">
               Approvals
             </Link>
+            <Link href="/admin/dashboard" className="text-neutral-500 transition-colors hover:text-neutral-900">
+              Dashboard
+            </Link>
+            <Link href="/admin/staff" className="text-neutral-500 transition-colors hover:text-neutral-900">
+              Floor staff
+            </Link>
           </nav>
           <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">
             Fabrica X · Sept 2026
