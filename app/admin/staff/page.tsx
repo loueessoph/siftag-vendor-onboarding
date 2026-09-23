@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/chrome";
 import { Button, Field, Input, Muted, Pill } from "@/components/ui";
 import { getActiveEvent, getUnitForStaff, type UnitStatus } from "@/lib/live-event";
-import { setUnitStatusAction } from "./actions";
+import { setUnitStatusAction, collectOrderAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Floor staff: Siftag pop-up admin",
@@ -26,9 +26,15 @@ const STATUS_BUTTONS: { value: UnitStatus; label: string }[] = [
 export default async function StaffConsole({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string; updated?: string; error?: string }>;
+  searchParams: Promise<{
+    code?: string;
+    updated?: string;
+    error?: string;
+    collected?: string;
+    collect_error?: string;
+  }>;
 }) {
-  const { code, updated, error } = await searchParams;
+  const { code, updated, error, collected, collect_error: collectError } = await searchParams;
   const event = await getActiveEvent();
   const unit = code ? await getUnitForStaff(code) : null;
 
@@ -110,6 +116,29 @@ export default async function StaffConsole({
           </div>
         </div>
       )}
+
+      <div className="mt-16 max-w-sm border-t border-neutral-200 pt-8">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Express counter</p>
+        <p className="mt-1 text-sm">
+          <Muted>A customer who paid online — type or scan their collect code.</Muted>
+        </p>
+
+        {collected && (
+          <div className="mt-4 border border-neutral-900 px-4 py-3 text-sm">Collected: {collected}</div>
+        )}
+        {collectError && (
+          <div className="mt-4 border border-red-600 px-4 py-3 text-sm text-red-600">{collectError}</div>
+        )}
+
+        <form action={collectOrderAction} className="mt-4">
+          <div className="flex gap-2">
+            <Input name="collect_code" placeholder="Collect code" className="uppercase" />
+            <Button type="submit" size="compact">
+              Mark collected
+            </Button>
+          </div>
+        </form>
+      </div>
     </AdminShell>
   );
 }

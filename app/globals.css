@@ -42,3 +42,15 @@
     @apply border-neutral-400 bg-neutral-400;
   }
 }
+
+@layer utilities {
+  /* The pop-up catalogue's horizontally-scrolling category tabs shouldn't
+     show a scrollbar on top of what's already a tab strip. */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
