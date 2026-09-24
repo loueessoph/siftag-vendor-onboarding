@@ -244,7 +244,12 @@ export async function getOrderSummary(collectCode: string): Promise<OrderSummary
     collect_code: order.collect_code,
     order_type: order.order_type,
     status: order.status,
-    subtotal_gbp: order.subtotal_gbp,
+    // popup_orders.subtotal_gbp is a Postgres `numeric` column — PostgREST
+    // serializes those as strings (to avoid float precision loss), not the
+    // `number` this type promises, so unwrapped this crashes the confirm
+    // page's `.toFixed(2)` calls. Same normalization getUnitsLineItems
+    // already does for price_gbp.
+    subtotal_gbp: order.subtotal_gbp === null ? null : Number(order.subtotal_gbp),
     shopify_invoice_url: order.shopify_invoice_url,
     items,
     created_at: order.created_at,

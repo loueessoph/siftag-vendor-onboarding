@@ -23,7 +23,7 @@ export function AdminShell({
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 py-5">
           <nav className="flex items-center gap-6 text-[11px] uppercase tracking-[0.2em]">
             <Link href="/admin" aria-label="Siftag pop-up admin" className="shrink-0">
-              <Image src="/SiftagLogo.png" alt="Siftag" width={90} height={29} priority />
+              <Image src="/SiftagLogo.png" alt="Siftag" width={90} height={29} priority className="h-[29px] w-[90px]" />
             </Link>
             <Link href="/admin" className="text-neutral-500 transition-colors hover:text-neutral-900">
               Brands

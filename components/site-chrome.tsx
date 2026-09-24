@@ -11,6 +11,7 @@ export function SiteHeader() {
           width={90}
           height={29}
           priority
+          className="h-[29px] w-[90px]"
         />
       </a>
       <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">
@@ -24,7 +25,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-neutral-200 py-10">
       <div className="flex flex-col items-center gap-4">
-        <Image src="/SiftagLogo.png" alt="Siftag" width={72} height={23} />
+        <Image src="/SiftagLogo.png" alt="Siftag" width={72} height={23} className="h-[23px] w-[72px]" />
         <div className="flex items-center gap-6 text-xs uppercase tracking-[0.15em] text-neutral-500">
           <a
             href="https://siftag.com"

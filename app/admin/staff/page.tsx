@@ -119,9 +119,9 @@ export default async function StaffConsole({
 
       <div className="mt-16 max-w-sm border-t border-neutral-200 pt-8">
         <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Express counter</p>
-        <p className="mt-1 text-sm">
+        <div className="mt-1">
           <Muted>A customer who paid online — type or scan their collect code.</Muted>
-        </p>
+        </div>
 
         {collected && (
           <div className="mt-4 border border-neutral-900 px-4 py-3 text-sm">Collected: {collected}</div>
