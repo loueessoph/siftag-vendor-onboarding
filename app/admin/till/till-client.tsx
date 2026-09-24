@@ -9,6 +9,46 @@ type Props = { terminal: boolean; staffName: string };
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 
+/**
+ * Scan feedback without an audio file: the single short high beep of a shop
+ * barcode scanner when a tag goes in the basket, two low buzzes when it's
+ * refused. The AudioContext is created on the first tap (browsers block
+ * sound before any gesture) and shared after that.
+ */
+let audio: AudioContext | null = null;
+function prepareAudio() {
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === "suspended") audio.resume();
+  } catch {
+    audio = null;
+  }
+}
+function tone(freq: number, at: number, len: number, type: OscillatorType, volume: number) {
+  if (!audio) return;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const t0 = audio.currentTime + at;
+  gain.gain.setValueAtTime(volume, t0);
+  gain.gain.setValueAtTime(volume, t0 + len - 0.01);
+  gain.gain.linearRampToValueAtTime(0.0001, t0 + len);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(t0);
+  osc.stop(t0 + len + 0.02);
+}
+function beep(kind: "ok" | "error") {
+  if (kind === "ok") {
+    // Scanner beep: ~2.7kHz, 90ms, flat then off.
+    tone(2700, 0, 0.09, "square", 0.08);
+  } else {
+    tone(330, 0, 0.12, "square", 0.08);
+    tone(330, 0.17, 0.12, "square", 0.08);
+  }
+  if (navigator.vibrate) navigator.vibrate(kind === "ok" ? 40 : [80, 40, 80]);
+}
+
 /** A scanner types the tag URL or code and presses Enter; the same box takes a typed code. */
 export function TillClient({ terminal, staffName }: Props) {
   const [basket, setBasket] = useState<TillLine[]>([]);
@@ -41,15 +81,18 @@ export function TillClient({ terminal, staffName }: Props) {
       const res = await fetch(`/api/admin/till/unit?code=${encodeURIComponent(value)}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) {
+        beep("error");
         setError(json.error ?? "Couldn't read that tag.");
         return;
       }
       const line = json as TillLine;
       if (basketRef.current.some((l) => l.unitCode === line.unitCode)) {
+        beep("error");
         setError(`${line.unitCode} is already in the basket.`);
         return;
       }
       if (line.status !== "available") {
+        beep("error");
         setError(
           line.status === "sold"
             ? `${line.productTitle} (${line.unitCode}) has already been sold.`
@@ -57,6 +100,7 @@ export function TillClient({ terminal, staffName }: Props) {
         );
         return;
       }
+      beep("ok");
       setBasket((b) => [...b, line]);
     } catch {
       setError("Network error. Scan it again.");
@@ -71,6 +115,43 @@ export function TillClient({ terminal, staffName }: Props) {
     setBasket((b) => b.filter((l) => l.unitCode !== code));
     focus();
   }
+
+  /** One more of the same product and size, from the next spare tag on record (or a fresh one if stock was undercounted). */
+  async function addAnother(line: TillLine) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/till/another", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitCode: line.unitCode, exclude: basketRef.current.map((l) => l.unitCode) }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Couldn't add another.");
+        return;
+      }
+      const extra = json as TillLine & { created: boolean };
+      beep("ok");
+      setBasket((b) => [...b, extra]);
+      if (extra.created) setError(`No spare tag for ${line.productTitle} (${line.size ?? "one size"}) was on record, so one was added: ${extra.unitCode}.`);
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setBusy(false);
+      focus();
+    }
+  }
+
+  // Lines shown grouped by product, size and colour with a quantity, since
+  // two of the same top are two tags underneath.
+  const groups = basket.reduce<Array<{ key: string; sample: TillLine; codes: string[] }>>((acc, l) => {
+    const key = `${l.brandName}|${l.productTitle}|${l.size ?? ""}|${l.priceGbp}`;
+    const g = acc.find((x) => x.key === key);
+    if (g) g.codes.push(l.unitCode);
+    else acc.push({ key, sample: l, codes: [l.unitCode] });
+    return acc;
+  }, []);
 
   async function charge(mode: "terminal" | "qr" | "cash") {
     if (basket.length === 0) return;
@@ -235,6 +316,7 @@ export function TillClient({ terminal, staffName }: Props) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          prepareAudio();
           addCode(input);
         }}
       >
@@ -265,7 +347,10 @@ export function TillClient({ terminal, staffName }: Props) {
       ) : (
         <button
           type="button"
-          onClick={() => setCamera(true)}
+          onClick={() => {
+            prepareAudio();
+            setCamera(true);
+          }}
           className="w-full rounded-full border border-neutral-900 py-4 text-sm uppercase tracking-wide"
         >
           Scan with camera
@@ -279,20 +364,39 @@ export function TillClient({ terminal, staffName }: Props) {
           <p className="border border-dashed border-neutral-300 px-6 py-10 text-center text-sm text-neutral-400">Basket is empty.</p>
         ) : (
           <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
-            {basket.map((l) => (
-              <li key={l.unitCode} className="flex items-center justify-between gap-4 py-3">
+            {groups.map(({ key, sample, codes }) => (
+              <li key={key} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm">{l.productTitle}</p>
+                  <p className="truncate text-sm">{sample.productTitle}</p>
                   <p className="text-xs text-neutral-500">
-                    {l.brandName}
-                    {l.size ? ` · ${l.size}` : ""} · <span className="font-mono">{l.unitCode}</span>
+                    {sample.brandName}
+                    {sample.size ? ` · ${sample.size}` : ""} · {money(sample.priceGbp)} each
                   </p>
+                  <p className="font-mono text-[10px] text-neutral-400">{codes.join("  ")}</p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm">{money(l.priceGbp)}</span>
-                  <button onClick={() => remove(l.unitCode)} className="text-xs text-neutral-400 underline underline-offset-2 hover:text-neutral-900">
-                    Remove
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="One fewer"
+                    onClick={() => remove(codes[codes.length - 1])}
+                    className="h-9 w-9 rounded-full border border-neutral-300 text-lg leading-none hover:border-neutral-900"
+                  >
+                    −
                   </button>
+                  <span className="w-6 text-center text-sm tabular-nums">{codes.length}</span>
+                  <button
+                    type="button"
+                    aria-label="One more"
+                    disabled={busy}
+                    onClick={() => {
+                      prepareAudio();
+                      addAnother(sample);
+                    }}
+                    className="h-9 w-9 rounded-full border border-neutral-300 text-lg leading-none hover:border-neutral-900 disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                  <span className="w-16 text-right text-sm">{money(sample.priceGbp * codes.length)}</span>
                 </div>
               </li>
             ))}
@@ -386,7 +490,6 @@ function CameraScanner({ onCode, onClose }: { onCode: (code: string) => void; on
         const seen = recent.get(found.data) ?? 0;
         if (now - seen < 4000) return;
         recent.set(found.data, now);
-        if (navigator.vibrate) navigator.vibrate(60);
         setFlash(found.data.split("/").pop() ?? found.data);
         setTimeout(() => setFlash(null), 1200);
         onCodeRef.current(found.data);

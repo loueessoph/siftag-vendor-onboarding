@@ -40,36 +40,43 @@ export async function AdminShell({
   const backTo = back === null ? null : back ?? defaultBack;
   return (
     <main className="min-h-screen bg-white text-neutral-900">
-      <div className="mx-auto max-w-admin px-6">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 py-5">
-          <nav className="flex items-center gap-6 text-[11px] uppercase tracking-[0.2em]">
+      <div className="mx-auto max-w-admin overflow-x-hidden px-6">
+        {/*
+          On a phone the five links can't share a row with the logo, so they
+          drop to a row of their own that scrolls sideways; the page itself
+          never gets wider than the screen. Desktop keeps the single row.
+        */}
+        <header className="border-b border-neutral-200 py-4 lg:py-5">
+          <div className="flex items-center justify-between gap-4">
             <Link href={home} aria-label="Siftag pop-up admin" className="shrink-0">
-              <Image src="/SiftagLogo.png" alt="Siftag" width={90} height={29} priority className="w-[90px] h-auto" />
+              <Image src="/SiftagLogo.png" alt="Siftag" width={90} height={29} priority className="h-auto w-[72px] lg:w-[90px]" />
             </Link>
+            <nav className="hidden items-center gap-6 text-[11px] uppercase tracking-[0.2em] lg:flex">
+              {nav.map((item) => (
+                <Link key={item.href} href={item.href} className="whitespace-nowrap text-neutral-500 transition-colors hover:text-neutral-900">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="ml-auto flex items-center gap-4 text-[11px] uppercase tracking-[0.2em] text-neutral-400">
+              <span className="hidden xl:inline">Fabrica X · Sept 2026</span>
+              {session && (
+                <form action="/api/admin/logout" method="post" className="flex items-center gap-3">
+                  <span className="text-neutral-500">{session.name}</span>
+                  <button type="submit" className="underline underline-offset-4 transition-colors hover:text-neutral-900">
+                    Sign out
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+          <nav className="-mx-6 mt-3 flex gap-6 overflow-x-auto px-6 text-[11px] uppercase tracking-[0.2em] lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-neutral-500 transition-colors hover:text-neutral-900"
-              >
+              <Link key={item.href} href={item.href} className="whitespace-nowrap py-1 text-neutral-500 transition-colors hover:text-neutral-900">
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-5 text-[11px] uppercase tracking-[0.2em] text-neutral-400">
-            <span className="hidden sm:inline">Fabrica X · Sept 2026</span>
-            {session && (
-              <form action="/api/admin/logout" method="post" className="flex items-center gap-3">
-                <span className="text-neutral-500">{session.name}</span>
-                <button
-                  type="submit"
-                  className="underline underline-offset-4 transition-colors hover:text-neutral-900"
-                >
-                  Sign out
-                </button>
-              </form>
-            )}
-          </div>
         </header>
 
         {backTo && (
@@ -83,14 +90,14 @@ export async function AdminShell({
           </div>
         )}
 
-        <div className={`flex flex-wrap items-end justify-between gap-6 pb-10 ${backTo ? "pt-6" : "pt-12"}`}>
+        <div className={`flex flex-wrap items-end justify-between gap-6 pb-8 lg:pb-10 ${backTo ? "pt-6" : "pt-8 lg:pt-12"}`}>
           <div>
             {eyebrow && (
               <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
                 {eyebrow}
               </p>
             )}
-            <h1 className="mt-2 font-display text-3xl lg:text-4xl">{title}</h1>
+            <h1 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl">{title}</h1>
           </div>
           {action}
         </div>
