@@ -17,7 +17,7 @@ const money = (n: number) => `£${n.toFixed(2)}`;
 export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
   const cart = useCart();
   const [statuses, setStatuses] = useState<Record<string, string>>({});
-  const [contact, setContact] = useState({ email: "", name: "", phone: "" });
+  const [contact, setContact] = useState({ email: "" });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +56,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
   async function checkout() {
     if (buyable.length === 0) return;
     if (!contact.email.trim()) {
-      setError("Enter your email so we can send your collection code.");
+      setError("Enter your email for the collection code.");
       return;
     }
     setSubmitting(true);
@@ -65,12 +65,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
       const res = await fetch("/api/popup/express/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitCodes: buyable.map((i) => i.unitCode),
-          email: contact.email.trim(),
-          phone: contact.phone.trim() || undefined,
-          name: contact.name.trim() || undefined,
-        }),
+        body: JSON.stringify({ unitCodes: buyable.map((i) => i.unitCode), email: contact.email.trim() }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -153,50 +148,38 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
         </div>
       </div>
 
-      <aside className="space-y-4 md:sticky md:top-4 md:self-start">
-        <div className="flex items-baseline justify-between border-b border-gray-100 pb-3">
-          <span className="text-xs uppercase tracking-widest text-gray-500">Total</span>
-          <span className="text-lg text-gray-900">{money(total)}</span>
+      <aside className="md:sticky md:top-4 md:self-start">
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs tracking-widest text-gray-500">TOTAL</span>
+          <span className="text-xl text-gray-900">{money(total)}</span>
         </div>
-        <div className="space-y-2">
+
+        <label className="mt-8 block">
+          <span className="text-[11px] tracking-widest text-gray-500">EMAIL</span>
           <input
             value={contact.email}
             onChange={(e) => setContact({ ...contact, email: e.target.value })}
             type="email"
             autoComplete="email"
-            placeholder="Email (for your collection code)"
-            className="w-full rounded-full border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+            placeholder="you@example.com"
+            className="mt-1 w-full border-0 border-b border-gray-300 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-gray-900 focus:outline-none focus:ring-0"
           />
-          <input
-            value={contact.name}
-            onChange={(e) => setContact({ ...contact, name: e.target.value })}
-            autoComplete="name"
-            placeholder="Name (optional)"
-            className="w-full rounded-full border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
-          />
-          <input
-            value={contact.phone}
-            onChange={(e) => setContact({ ...contact, phone: e.target.value })}
-            type="tel"
-            autoComplete="tel"
-            placeholder="Phone (optional)"
-            className="w-full rounded-full border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
-          />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        </label>
+        <p className="mt-1.5 text-[11px] text-gray-400">Your collection code goes here.</p>
+
+        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+
         <button
           type="button"
           onClick={checkout}
           disabled={submitting || buyable.length === 0}
-          className="w-full rounded-full bg-gray-900 px-6 py-3 text-xs uppercase tracking-widest text-white transition-colors hover:bg-gray-800 disabled:bg-gray-300"
+          className="mt-6 w-full rounded-full bg-gray-900 px-6 py-3 text-xs uppercase tracking-widest text-white transition-colors hover:bg-gray-800 disabled:bg-gray-300"
         >
-          {submitting ? "Opening secure checkout…" : `Pay ${money(total)} by card`}
+          {submitting ? "Opening secure checkout…" : `Pay ${money(total)}`}
         </button>
-        <p className="text-[11px] leading-relaxed text-gray-400">
-          Checkout is completely secure. Payment is taken on Stripe&apos;s own page and your card details are never seen or stored by Siftag. You&apos;ll get a collection code on screen and by email; show it at the Express counter to pick up your items.
-        </p>
+        <p className="mt-3 text-center text-[11px] text-gray-400">Secure checkout by Stripe · collect at the Express counter</p>
         {unavailable.length > 0 && (
-          <p className="text-[11px] text-gray-500">{unavailable.length} item{unavailable.length === 1 ? "" : "s"} in your bag can no longer be bought and won&apos;t be charged.</p>
+          <p className="mt-3 text-[11px] text-gray-500">{unavailable.length} item{unavailable.length === 1 ? "" : "s"} can no longer be bought and won&apos;t be charged.</p>
         )}
       </aside>
     </div>
