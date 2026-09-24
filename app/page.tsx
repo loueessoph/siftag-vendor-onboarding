@@ -62,7 +62,7 @@ export default function IntroPage() {
           href="/popup"
           className="mt-4 inline-flex items-center justify-center rounded-full bg-gray-900 px-8 py-2.5 text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-gray-800"
         >
-          Enter the pop-up
+          Shop the items
         </Link>
         <p className="mt-2.5 text-[9px] uppercase tracking-[0.2em] text-gray-400 md:text-[10px]">All sales are final</p>
       </div>
