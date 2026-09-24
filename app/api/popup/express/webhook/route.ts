@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { fromPopup } from "@/lib/supabase/server";
 import { constructWebhookEvent, paymentIntentId } from "@/lib/stripe";
 import { cancelPendingOrder, markOrderPaid } from "@/lib/express";
+import { claimAppPayment } from "@/lib/till";
 
 /**
  * The one Stripe webhook, for every order this app opens: express
@@ -13,7 +14,8 @@ import { cancelPendingOrder, markOrderPaid } from "@/lib/express";
  *   checkout.session.async_payment_succeeded   same, for delayed methods
  *   checkout.session.async_payment_failed      release the hold
  *   checkout.session.expired           nobody paid: release the hold
- *   payment_intent.succeeded           till card reader: units go to 'sold'
+ *   payment_intent.succeeded           till card reader, or Tap to Pay in the
+ *                                      Stripe app: units go to 'sold'
  *   payment_intent.canceled            till sale abandoned: release the hold
  *
  * Stripe retries until it gets a 2xx and may deliver an event more than
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
       // Till sales on the card reader have no Checkout Session; express
       // payments also raise this, but their order is already paid by then.
       const intent = event.data.object;
-      return markPaidByIntent(intent.id, intent.metadata?.order_id);
+      return markPaidByIntent(intent);
     }
     case "payment_intent.canceled": {
       const intent = event.data.object;
@@ -96,15 +98,27 @@ async function markPaid(session: Stripe.Checkout.Session) {
   }
 }
 
-async function markPaidByIntent(intentId: string, orderId?: string | null) {
+async function markPaidByIntent(intent: Stripe.PaymentIntent) {
+  const intentId = intent.id;
   let order: OrderRow | null;
   try {
-    order = await findOrderBy("stripe_payment_intent_id", intentId, orderId);
+    order = await findOrderBy("stripe_payment_intent_id", intentId, intent.metadata?.order_id);
   } catch (err) {
     console.error("Order lookup failed for Stripe webhook", err, intentId);
     return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
   }
-  if (!order) return NextResponse.json({ ok: true, skipped: "no order for intent" });
+  if (!order) {
+    // Not one of ours by id: a Tap to Pay payment from the Stripe app,
+    // which knows nothing about our orders. Match it to the till order
+    // waiting for that amount.
+    try {
+      const claimed = await claimAppPayment(intent);
+      return NextResponse.json({ ok: true, skipped: claimed ? undefined : "no order for intent" });
+    } catch (err) {
+      console.error("Tap to Pay match failed", err, intentId);
+      return NextResponse.json({ error: "Match failed" }, { status: 500 });
+    }
+  }
   try {
     const done = await markOrderPaid(order, { method: "card", paymentIntentId: intentId });
     return NextResponse.json({ ok: true, skipped: done ? undefined : "already processed" });

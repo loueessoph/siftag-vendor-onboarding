@@ -5,7 +5,7 @@ import { tillSession } from "../_auth";
 const MAX_ITEMS = 20;
 // The pop-up is card only. The cash path in lib/till.ts stays for the day
 // that changes, but the till can't reach it.
-const MODES: TillMode[] = ["terminal", "qr"];
+const MODES: TillMode[] = ["terminal", "qr", "app"];
 
 /** POST { unitCodes, mode, email? } — claims the basket and starts payment. */
 export async function POST(request: NextRequest) {
