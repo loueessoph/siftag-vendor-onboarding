@@ -1,7 +1,24 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { readSession } from "@/lib/admin-session";
+import { homeFor } from "@/lib/admin-auth";
 
-export function AdminShell({
+const ADMIN_NAV = [
+  { href: "/admin", label: "Brands" },
+  { href: "/admin/approvals", label: "Approvals" },
+  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/staff", label: "Floor staff" },
+  { href: "/admin/till", label: "Checkout" },
+];
+
+/** What a floor-staff account can reach: the console and the till. */
+const STAFF_NAV = [
+  { href: "/admin/staff", label: "Floor staff" },
+  { href: "/admin/till", label: "Checkout" },
+];
+
+export async function AdminShell({
   title,
   eyebrow,
   action,
@@ -15,25 +32,44 @@ export function AdminShell({
   back?: { href: string; label: string } | null;
   children: ReactNode;
 }) {
-  const backTo = back === null ? null : back ?? { href: "/admin", label: "All brands" };
+  const session = await readSession();
+  const isStaff = session?.role === "staff";
+  const home = homeFor(session?.role ?? "admin");
+  const nav = isStaff ? STAFF_NAV : ADMIN_NAV;
+  const defaultBack = isStaff ? null : { href: "/admin", label: "All brands" };
+  const backTo = back === null ? null : back ?? defaultBack;
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       <div className="mx-auto max-w-admin px-6">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 py-5">
           <nav className="flex items-center gap-6 text-[11px] uppercase tracking-[0.2em]">
-            <Link href="/admin" className="font-semibold transition-colors hover:text-neutral-500">
-              Siftag pop-up admin
+            <Link href={home} aria-label="Siftag pop-up admin" className="shrink-0">
+              <Image src="/SiftagLogo.png" alt="Siftag" width={90} height={29} priority className="w-[90px] h-auto" />
             </Link>
-            <Link href="/admin" className="text-neutral-500 transition-colors hover:text-neutral-900">
-              Brands
-            </Link>
-            <Link href="/admin/approvals" className="text-neutral-500 transition-colors hover:text-neutral-900">
-              Approvals
-            </Link>
+            {nav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-neutral-500 transition-colors hover:text-neutral-900"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">
-            Fabrica X · Sept 2026
-          </span>
+          <div className="flex items-center gap-5 text-[11px] uppercase tracking-[0.2em] text-neutral-400">
+            <span className="hidden sm:inline">Fabrica X · Sept 2026</span>
+            {session && (
+              <form action="/api/admin/logout" method="post" className="flex items-center gap-3">
+                <span className="text-neutral-500">{session.name}</span>
+                <button
+                  type="submit"
+                  className="underline underline-offset-4 transition-colors hover:text-neutral-900"
+                >
+                  Sign out
+                </button>
+              </form>
+            )}
+          </div>
         </header>
 
         {backTo && (

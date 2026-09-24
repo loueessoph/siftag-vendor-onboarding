@@ -23,7 +23,7 @@ export default async function AdminLogin({
         <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
           Siftag pop-up
         </p>
-        <h1 className="mt-3 font-display text-3xl">Admin</h1>
+        <h1 className="mt-3 font-display text-3xl">Sign in</h1>
 
         <div className="mt-8">
           <Field

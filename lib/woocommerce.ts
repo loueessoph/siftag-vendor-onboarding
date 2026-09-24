@@ -293,6 +293,7 @@ export function parseProductPage(
     title,
     handle,
     imageUrl: imageUrl ? decodeEntities(imageUrl) : null,
+    imageUrls: imageUrl ? [decodeEntities(imageUrl)] : [],
     productType,
     exclusionReason,
     fibreComposition,

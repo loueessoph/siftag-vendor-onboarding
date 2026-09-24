@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   // Without this, Turbopack walks up past the repo and picks a stray lockfile
   // in the home directory as the project root.
   turbopack: { root: path.resolve(".") },
+  // The tag PDF route reads fonts and brand logos off disk at request time.
+  // Vercel's bundler only ships files it can see imported, so name them.
+  outputFileTracingIncludes: {
+    "/api/admin/tags": ["./public/fonts/**/*", "./public/brand-logos/**/*"],
+  },
   images: {
     // Vendor catalogue images are hot-linked from the brands' own Shopify CDNs
     // rather than copied into our storage, so the loader has to allow them.

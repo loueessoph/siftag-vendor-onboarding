@@ -101,6 +101,7 @@ export function productsFromCsv(text: string): ScrapedProduct[] {
         title,
         handle: slug(title),
         imageUrl: get(row, "image_url"),
+        imageUrls: get(row, "image_url") ? [get(row, "image_url") as string] : [],
         productType: null,
         exclusionReason: null,
         fibreComposition: null,
@@ -120,7 +121,10 @@ export function productsFromCsv(text: string): ScrapedProduct[] {
       onlinePrice: price ? Number(price.replace(/[£$,\s]/g, "")) || null : null,
     };
     product.variants.push(variant);
-    if (!product.imageUrl) product.imageUrl = get(row, "image_url");
+    if (!product.imageUrl) {
+      product.imageUrl = get(row, "image_url");
+      product.imageUrls = product.imageUrl ? [product.imageUrl] : [];
+    }
     if (!product.fibreComposition) {
       const composition = get(row, "composition");
       product.fibreComposition = composition ? extractComposition(composition) : null;

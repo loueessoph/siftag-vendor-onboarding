@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Container, Eyebrow, Muted, PageHeading, Section } from "@/components/ui";
+import { Container, DetailTable, Eyebrow, Muted, PageHeading, Section } from "@/components/ui";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { NextAction, AllDone } from "@/components/vendor/next-action";
 import { ProgressBar } from "@/components/vendor/progress-bar";
@@ -9,6 +9,7 @@ import { StepList } from "@/components/vendor/step-list";
 import { completedCount, nextAction, stepsWithStatus } from "@/lib/steps";
 import { vendorPath } from "@/lib/brands";
 import { getVendorByToken, markOpened } from "@/lib/vendor";
+import { getVendorSales, money } from "@/lib/live-event";
 
 export const metadata: Metadata = {
   title: "Your onboarding: Siftag at Fabrica X",
@@ -32,6 +33,7 @@ export default async function VendorHub({
 
   const { brand, progress } = context;
   await markOpened(brand);
+  const sales = await getVendorSales(brand.id);
 
   const base = vendorPath(brand.slug, token);
   const steps = stepsWithStatus(progress, brand);
@@ -107,6 +109,33 @@ export default async function VendorHub({
           <div className="mt-8">
             <StepList base={base} steps={steps} />
           </div>
+        </Section>
+
+        <Section>
+          <p className="text-[15px] font-medium">Your sales</p>
+          <div className="mt-1.5">
+            <Muted>
+              {sales.unitsSold === 0
+                ? "Nothing's sold yet — this updates live once the doors open."
+                : "Updates live as sales come in. Finalized once the event closes."}
+            </Muted>
+          </div>
+          <DetailTable
+            evenSplit
+            rows={[
+              { label: "Units sold", value: String(sales.unitsSold) },
+              { label: "Revenue", value: money(sales.grossGbp) },
+              {
+                label: `Commission (${sales.commissionPct}%)`,
+                value: `-${money(sales.commissionGbp)}`,
+              },
+              { label: "Estimated payout", value: money(sales.netPayableGbp) },
+              {
+                label: "Live stock",
+                value: `${sales.stock.available} available · ${sales.stock.held} held · ${sales.stock.fittingRoom} in fitting room · ${sales.stock.sold} sold`,
+              },
+            ]}
+          />
         </Section>
 
         <Section>
