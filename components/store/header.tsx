@@ -2,23 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "./cart";
 
-/** The shop sections. The browse page reads `section` from the URL. */
-export const SECTIONS: { key: string; label: string }[] = [
-  { key: "all", label: "ALL" },
-  { key: "women", label: "WOMEN" },
-  { key: "men", label: "MEN" },
-  { key: "accessories", label: "ACCESSORIES" },
-];
-
 /**
- * siftag.com's header, pared down for the pop-up: the wordmark centred, the
- * bag on the right, and the section links in a row beneath. No accounts,
- * so no favourites or log in.
+ * siftag.com's header, pared down for the pop-up: the wordmark centred and
+ * the bag on the right. With a dozen brands there are no section links;
+ * the logo strip and the filter panel on the browse page do that job. No
+ * accounts, so no favourites or log in.
  */
 export function StoreHeader() {
   return (
@@ -36,9 +27,7 @@ export function StoreHeader() {
           <BagButton />
         </div>
       </div>
-      <Suspense fallback={<div className="h-10" />}>
-        <SectionNav />
-      </Suspense>
+      <div className="h-3" />
     </header>
   );
 }
@@ -58,29 +47,5 @@ function BagButton() {
         </span>
       )}
     </Link>
-  );
-}
-
-function SectionNav() {
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const onBrowse = pathname === "/" || pathname === "/popup";
-  const active = onBrowse ? (params.get("section") ?? "all") : null;
-  return (
-    <nav className="relative bg-white">
-      <div className="scrollbar-hide flex justify-start gap-8 overflow-x-auto px-6 py-2 md:justify-center md:gap-12 md:px-8">
-        {SECTIONS.map((s) => (
-          <Link
-            key={s.key}
-            href={s.key === "all" ? "/" : `/?section=${s.key}`}
-            className={`flex shrink-0 items-center whitespace-nowrap text-sm font-medium tracking-widest transition-colors ${
-              active === s.key ? "text-gray-900" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            {s.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
   );
 }
