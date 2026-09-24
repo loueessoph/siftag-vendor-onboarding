@@ -223,8 +223,7 @@ export function PickupClient() {
         )}
       </div>
 
-      {/* On a phone the scanner is the job, so it sits above the list. */}
-      <aside className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+      <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
         <div className="border border-neutral-200 p-4 sm:p-5">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Confirm a pickup</p>
           <p className="mt-1 text-sm text-neutral-500">Scan the QR on the customer&apos;s phone, or type their code.</p>
