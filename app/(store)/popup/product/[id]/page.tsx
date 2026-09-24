@@ -38,7 +38,7 @@ export default async function PopupProductPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-2 md:px-6 md:pt-6">
-      <Link href="/" className="mb-4 inline-flex items-center gap-1 text-xs tracking-widest text-gray-500 hover:text-gray-900">
+      <Link href="/popup" className="mb-4 inline-flex items-center gap-1 text-xs tracking-widest text-gray-500 hover:text-gray-900">
         <ChevronLeft className="h-4 w-4" /> ALL ITEMS
       </Link>
       <div className="grid gap-8 md:grid-cols-2 md:gap-12">

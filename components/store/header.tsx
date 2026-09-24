@@ -19,7 +19,7 @@ export function StoreHeader() {
           <span className="hidden text-[11px] tracking-widest text-gray-500 md:inline">FABRICA X · 25–27 SEPT</span>
         </div>
         <div className="shrink-0">
-          <Link href="/" aria-label="Siftag Pop-Up home">
+          <Link href="/popup" aria-label="Siftag Pop-Up shop">
             <Image src="/SiftagLogo.png" alt="Siftag" width={100} height={33} className="h-auto w-[100px] md:w-[120px]" priority />
           </Link>
         </div>

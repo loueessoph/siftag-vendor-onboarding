@@ -1,0 +1,23 @@
+import type { Metadata } from "next";
+import { AdminShell } from "@/components/admin/chrome";
+import { listAdminItems } from "@/lib/admin-items";
+import { ItemsClient } from "./items-client";
+
+export const metadata: Metadata = {
+  title: "Item lookup: Siftag pop-up admin",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+/** Every item on the rails, with its stock and tag codes, searchable by name, brand or code. */
+export default async function AdminItemsPage() {
+  const items = await listAdminItems();
+  const available = items.reduce((s, i) => s + i.counts.available, 0);
+  const total = items.reduce((s, i) => s + i.counts.available + i.counts.held + i.counts.fitting_room + i.counts.sold, 0);
+  return (
+    <AdminShell eyebrow={`${items.length} styles on the floor`} title={`${available} of ${total} pieces still for sale`}>
+      <ItemsClient items={items} />
+    </AdminShell>
+  );
+}

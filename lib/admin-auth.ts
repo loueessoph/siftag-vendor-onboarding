@@ -122,11 +122,14 @@ export function staffPasswordMatches(submitted: string): string | null {
   return match;
 }
 
-/** Where a 'staff' session may go: the floor console, the till, and in/out. */
+/** Where a 'staff' session may go: the floor console, the items list, the till, and in/out. */
 const STAFF_PATHS = [
   "/admin/staff",
+  "/admin/items",
   "/admin/till",
+  "/admin/pickup",
   "/api/admin/till",
+  "/api/admin/pickup",
   "/admin/login",
   "/api/admin/login",
   "/api/admin/logout",

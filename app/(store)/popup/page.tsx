@@ -12,17 +12,19 @@ export const metadata = {
 const SECTIONS: Section[] = ["all", "women", "men", "accessories"];
 
 interface Props {
-  searchParams?: Promise<{ section?: string }>;
+  /** `brand` comes from a tap on a card on the intro page. */
+  searchParams?: Promise<{ section?: string; brand?: string }>;
 }
 
 export default async function PopupBrowsePage({ searchParams }: Props) {
   const params = searchParams ? await searchParams : {};
   const section = SECTIONS.includes(params.section as Section) ? (params.section as Section) : "all";
   const products = await getBrowseCatalogue();
+  const brand = params.brand && products.some((p) => p.brandName === params.brand) ? params.brand : "all";
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-10 md:px-6">
-      <ShopClient initialProducts={products} section={section} />
+      <ShopClient initialProducts={products} section={section} initialBrand={brand} />
     </main>
   );
 }

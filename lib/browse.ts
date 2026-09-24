@@ -7,6 +7,7 @@
  */
 
 import { fromPopup } from "./supabase/server";
+import { TEST_BRAND_NAME } from "./test-brand";
 import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent, releaseExpiredHolds, type UnitStatus } from "./live-event";
 import { classifyPopupItem, getStylePriority, type PopupCategory, type PopupGender } from "./categorize";
@@ -49,7 +50,7 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
 
   const { data: brands, error: brandsError } = await fromPopup("popup_brands")
     .select("id, name, slug")
-    .neq("name", "ZZ Test Brand");
+    .neq("name", TEST_BRAND_NAME);
   if (brandsError) throw brandsError;
   const brandIds = (brands ?? []).map((b) => b.id);
   if (brandIds.length === 0) return [];

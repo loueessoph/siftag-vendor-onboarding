@@ -54,3 +54,12 @@
     display: none;
   }
 }
+
+/* The card that just left the pile fades back in underneath rather than sliding. */
+@keyframes deck-return {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.deck-return {
+  animation: deck-return 320ms ease-out;
+}

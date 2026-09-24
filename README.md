@@ -7,8 +7,10 @@ One job: get an approved product list from every brand by **14 September**, turn
 it into a till import before the event, and turn the till's sales export into
 per-brand payout reports within 14 days after.
 
-Live at **https://popup.siftag.com** (noindexed). The root is the shoppers'
-storefront; the vendor information page is at `/vendors`.
+Live at **https://popup.siftag.com** (noindexed). The root is an intro page
+(what Siftag is, how buying here works); the shop is `/popup` and the vendor
+information page is `/vendors`. The intro's swipeable deck is the poster
+plus one card per brand from `public/intro/cards`, listed in `app/page.tsx`.
 
 ## Running it
 

@@ -231,7 +231,9 @@ export async function finalizePaidOrder(
 
 export type PaidVia =
   | { method: "card"; checkoutSessionId?: string | null; paymentIntentId?: string | null }
-  | { method: "cash"; changedBy: string };
+  | { method: "cash"; changedBy: string }
+  /** A £0 rehearsal order on the test brand: nothing was taken, so no payment method is recorded. */
+  | { method: "free" };
 
 /**
  * The one place an order becomes paid: the Stripe webhook, the till's
@@ -255,7 +257,12 @@ export async function markOrderPaid(
       : {};
   const { data: claimed, error } = await db
     .from("popup_orders")
-    .update({ status: "paid", paid_at: new Date().toISOString(), payment_method: via.method, ...stripeIds })
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_method: via.method === "free" ? null : via.method,
+      ...stripeIds,
+    })
     .eq("id", order.id)
     .eq("status", "pending_payment")
     .select("id");
@@ -265,7 +272,11 @@ export async function markOrderPaid(
   try {
     await finalizePaidOrder(
       order,
-      via.method === "cash" ? { changedBy: via.changedBy, note: "paid in cash at the till" } : {}
+      via.method === "cash"
+        ? { changedBy: via.changedBy, note: "paid in cash at the till" }
+        : via.method === "free"
+          ? { note: "free test order, no payment taken" }
+          : {}
     );
   } catch (err) {
     await db.from("popup_orders").update({ status: "pending_payment", paid_at: null }).eq("id", order.id);

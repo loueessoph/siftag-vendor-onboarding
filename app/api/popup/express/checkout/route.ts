@@ -5,12 +5,14 @@ import {
   cancelPendingOrder,
   claimUnitsForCheckout,
   getUnitsLineItems,
+  markOrderPaid,
   releaseClaim,
   upsertCustomer,
   UnitsUnavailableError,
 } from "@/lib/express";
 import { generateCollectCode } from "@/lib/codes";
 import { createCheckoutSession, MIN_CHECKOUT_MINUTES, siteOrigin } from "@/lib/stripe";
+import { TEST_BRAND_NAME } from "@/lib/test-brand";
 
 const MAX_ITEMS = 10;
 
@@ -96,6 +98,24 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       await releaseClaim(holdId, unitIds, event.id, "checkout could not be opened");
       throw err;
+    }
+
+    // Stripe won't open a £0 session. The only £0 items allowed through are
+    // the test brand's, priced that way on purpose so the online flow can be
+    // rehearsed without a card: they are marked paid on the spot. A real
+    // item with no price is a catalogue mistake, not a giveaway.
+    if (subtotalGbp <= 0) {
+      const allTest = lineItems.every((li) => li.brandName === TEST_BRAND_NAME);
+      if (!allTest) {
+        await cancelPendingOrder({ id: order.id, hold_id: holdId });
+        return NextResponse.json({ error: "One of these items has no price yet. Please ask at the counter." }, { status: 400 });
+      }
+      await markOrderPaid({ id: order.id, event_id: event.id, hold_id: holdId }, { method: "free" });
+      return NextResponse.json({
+        collectCode,
+        checkoutUrl: `${siteOrigin()}/popup/express/confirm/${collectCode}`,
+        subtotalGbp,
+      });
     }
 
     try {
