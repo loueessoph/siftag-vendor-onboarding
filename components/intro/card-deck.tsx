@@ -18,9 +18,10 @@ const SWIPE_AT = 80;
 const TILTS = [-1.2, 0.8, -0.4, 1.4, -0.9, 0.5, -1.4, 1.1, -0.6, 0.9, -1.0, 0.3];
 
 /**
- * A pile of cards. The top one can be dragged off to either side; when it
- * goes, the next rises into place and the one that left slips quietly back
- * underneath. Arrows, dots and keyboard do the same.
+ * A pile of cards. Drag the top one off to either side and the next rises
+ * into place while the one that left slips quietly back underneath. The
+ * right arrow does the same; the left arrow brings the previous card back
+ * in from the left, on top.
  */
 export function CardDeck({ cards }: { cards: DeckCard[] }) {
   const count = cards.length;
@@ -31,12 +32,15 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
   const [returning, setReturning] = useState<number | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const moved = useRef(false);
-  const busy = useRef(false);
+  /** Until when the deck is mid-move. A timestamp rather than a flag, so a throttled timer can never leave it stuck. */
+  const busyUntil = useRef(0);
+  const isBusy = () => Date.now() < busyUntil.current;
 
+  /** Next: the top card flicks off in `dir` and the one beneath rises. */
   const advance = useCallback(
     (dir: -1 | 1) => {
-      if (busy.current || count < 2) return;
-      busy.current = true;
+      if (isBusy() || count < 2) return;
+      busyUntil.current = Date.now() + 560;
       const card = index;
       setDragging(false);
       setFlying(card);
@@ -47,26 +51,40 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
         setReturning(card);
         setIndex((i) => (i + 1) % count);
         setDx(0);
-        window.setTimeout(() => {
-          setReturning(null);
-          busy.current = false;
-        }, 320);
+        window.setTimeout(() => setReturning(null), 320);
       }, 240);
     },
     [count, index]
   );
 
+  /** Back: the previous card comes in from the left and lands on top. */
+  const [entering, setEntering] = useState<{ card: number; settled: boolean } | null>(null);
+  const retreat = useCallback(() => {
+    if (isBusy() || count < 2) return;
+    busyUntil.current = Date.now() + 440;
+    const prev = (index - 1 + count) % count;
+    setDragging(false);
+    setDx(0);
+    setEntering({ card: prev, settled: false });
+    setIndex(prev);
+    // A beat later it exists off to the left; now let it travel in.
+    window.setTimeout(() => {
+      setEntering({ card: prev, settled: true });
+      window.setTimeout(() => setEntering(null), 400);
+    }, 30);
+  }, [count, index]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") advance(1);
-      if (e.key === "ArrowLeft") advance(-1);
+      if (e.key === "ArrowRight") advance(-1);
+      if (e.key === "ArrowLeft") retreat();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [advance]);
+  }, [advance, retreat]);
 
   function onPointerDown(e: React.PointerEvent) {
-    if (busy.current) return;
+    if (isBusy()) return;
     start.current = { x: e.clientX, y: e.clientY };
     moved.current = false;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -108,6 +126,11 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
               transform = `translate(${dx}px, ${Math.abs(dx) * 0.08}px) rotate(${dx / 14}deg)`;
               zIndex = count + 1;
               transition = `transform 240ms ease-in`;
+            } else if (entering?.card === i && !entering.settled) {
+              // Waiting off to the left, about to come in on top.
+              transform = `translate(-560px, 40px) rotate(-30deg)`;
+              zIndex = count + 1;
+              transition = "none";
             } else if (onTop) {
               transform = `translate(${dx}px, 0) rotate(${dx / 14}deg) scale(${1 + pull * 0.02})`;
               zIndex = count;
@@ -127,7 +150,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
                   : `transform 380ms ${EASE}, opacity 320ms ${EASE}`;
               if (isReturning) opacity = pos > 3 ? 0 : 1;
             }
-            const interactive = onTop && !busy.current;
+            const interactive = onTop && !isBusy();
             const image = (
               <Image
                 src={card.src}
@@ -173,7 +196,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
       </div>
 
       <div className="mx-auto mt-4 flex w-full max-w-[360px] items-center justify-between">
-        <button type="button" aria-label="Previous card" onClick={() => advance(-1)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
+        <button type="button" aria-label="Previous card" onClick={retreat} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-1.5">
@@ -181,7 +204,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
             <span key={c.src} className={`h-1 rounded-full transition-all duration-300 ${i === index ? "w-4 bg-gray-900" : "w-1 bg-gray-300"}`} />
           ))}
         </div>
-        <button type="button" aria-label="Next card" onClick={() => advance(1)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
+        <button type="button" aria-label="Next card" onClick={() => advance(-1)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
