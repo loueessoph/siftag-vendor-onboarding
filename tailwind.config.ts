@@ -7,6 +7,10 @@ import type { Config } from "tailwindcss";
 // and the wider admin container — are named here. Everything else stays stock
 // Tailwind so the two codebases still read the same.
 export default {
+  // Phones emulate hover on the first tap, so a card whose photo swaps on
+  // hover needed two taps to open. Scoping hover styles to devices that can
+  // really hover makes one tap navigate everywhere.
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

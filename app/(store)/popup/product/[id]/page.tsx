@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { sized } from "@/lib/images";
-import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
+import { ProductGallery } from "@/components/store/product-gallery";
 import { ChevronLeft } from "lucide-react";
 import { AddToBag } from "@/components/store/add-to-bag";
 import { FabricComposition } from "@/components/store/fabric-composition";
@@ -44,25 +42,7 @@ export default async function PopupProductPage({ params }: Props) {
         <ChevronLeft className="h-4 w-4" /> ALL ITEMS
       </Link>
       <div className="grid gap-8 md:grid-cols-2 md:gap-12">
-        {/* Photos */}
-        <div className="space-y-3">
-          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-gray-200">
-            {product.image_urls[0] ? (
-              <Image src={sized(product.image_urls[0], 1200)} alt={product.title} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover object-top" />
-            ) : (
-              <PhotoPlaceholder />
-            )}
-          </div>
-          {product.image_urls.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {product.image_urls.slice(1, 5).map((url, i) => (
-                <div key={url} className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-gray-200">
-                  <Image src={sized(url, 400)} alt={`${product.title} ${i + 2}`} fill sizes="(max-width: 768px) 25vw, 12vw" className="object-cover object-top" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductGallery title={product.title} urls={product.image_urls} />
 
         <div className="space-y-6">
           <div>
