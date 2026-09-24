@@ -7,6 +7,7 @@ import { homeFor } from "@/lib/admin-auth";
 const ADMIN_NAV = [
   { href: "/admin", label: "Brands" },
   { href: "/admin/approvals", label: "Approvals" },
+  { href: "/admin/items", label: "Items" },
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/staff", label: "Floor staff" },
   { href: "/admin/till", label: "Checkout" },
