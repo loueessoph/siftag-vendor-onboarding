@@ -285,6 +285,11 @@ export function TillClient({ terminal, staffName }: Props) {
           {!paid && order.status === "pending_payment" && order.message && (
             <p className="mt-4 text-sm text-red-600">{order.message}</p>
           )}
+          {!paid && order.mode !== "cash" && (
+            <p className="mt-5 text-xs leading-relaxed text-neutral-400">
+              Secure payment by Stripe. Card details never reach Siftag and are not stored.
+            </p>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -427,6 +432,20 @@ export function TillClient({ terminal, staffName }: Props) {
         >
           Paid in cash
         </button>
+        {basket.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Remove every item from the basket?")) newSale();
+            }}
+            className="w-full py-2 text-xs uppercase tracking-wide text-neutral-400 underline underline-offset-4 hover:text-neutral-900"
+          >
+            Clear basket
+          </button>
+        )}
+        <p className="pt-2 text-center text-xs leading-relaxed text-neutral-400">
+          Card payments are processed securely by Stripe. Card details are entered on Stripe&apos;s own page or reader and are never seen or stored by Siftag.
+        </p>
       </div>
     </div>
   );
