@@ -94,20 +94,46 @@ export async function upsertCustomer(params: { phone?: string; email?: string; n
   const email = params.email?.trim().toLowerCase() || null;
   if (!phone && !email) throw new Error("A phone or email is required");
 
-  const existingQuery = fromPopup("popup_customers").select("id");
-  const { data: existing } = phone
-    ? await existingQuery.eq("phone", phone).maybeSingle()
-    : await existingQuery.eq("email", email!).maybeSingle();
-
-  if (existing) return existing.id as string;
+  // Email is the unique key on the table, so it's checked first; phone is
+  // the fallback for a shopper who gave no email. A returning shopper's
+  // record picks up whatever they've told us since.
+  const name = params.name?.trim() || null;
+  type Customer = { id: string; phone: string | null; name: string | null };
+  let existing: Customer | null = null;
+  if (email) {
+    const { data } = await fromPopup("popup_customers").select("id, phone, name").eq("email", email).maybeSingle();
+    existing = (data as Customer | null) ?? null;
+  }
+  if (!existing && phone) {
+    const { data } = await fromPopup("popup_customers").select("id, phone, name").eq("phone", phone).maybeSingle();
+    existing = (data as Customer | null) ?? null;
+  }
+  if (existing) {
+    const patch: Record<string, string> = {};
+    if (phone && !existing.phone) patch.phone = phone;
+    if (name && !existing.name) patch.name = name;
+    if (Object.keys(patch).length) await db.from("popup_customers").update(patch).eq("id", existing.id);
+    return existing.id;
+  }
 
   const { data: created, error } = await db
     .from("popup_customers")
-    .insert({ phone, email, name: params.name?.trim() || null })
+    .insert({ phone, email, name })
     .select("id")
     .single();
   if (error) throw error;
   return created.id as string;
+}
+
+/** Puts claimed units straight back when something fails between the claim and the order row existing. */
+export async function releaseClaim(holdId: string, unitIds: string[], eventId: string, note: string): Promise<void> {
+  const db = supabaseAdmin();
+  const nowIso = new Date().toISOString();
+  await db.from("popup_units").update({ status: "available", hold_id: null, updated_at: nowIso }).in("id", unitIds).eq("hold_id", holdId);
+  await db.from("popup_holds").update({ status: "released", released_at: nowIso }).eq("id", holdId);
+  await db.from("popup_unit_events").insert(
+    unitIds.map((id) => ({ popup_unit_id: id, event_id: eventId, from_status: "held", to_status: "available", changed_by: "system", note }))
+  );
 }
 
 /** Line-item detail for the units in a hold, used both for the Stripe Checkout Session and the order summary. */

@@ -5,6 +5,7 @@ import {
   cancelPendingOrder,
   claimUnitsForCheckout,
   getUnitsLineItems,
+  releaseClaim,
   upsertCustomer,
   UnitsUnavailableError,
 } from "@/lib/express";
@@ -57,32 +58,45 @@ export async function POST(request: NextRequest) {
       holdMinutes,
     });
 
-    const customerId = await upsertCustomer({ email, phone, name: body.name as string | undefined });
-    const lineItems = await getUnitsLineItems(unitIds);
-    const subtotalGbp = lineItems.reduce((sum, li) => sum + li.priceGbp, 0);
+    // From here until the order row exists, any failure must hand the
+    // garments back, or they'd sit held for half an hour for nobody.
+    let customerId: string;
+    let lineItems: Awaited<ReturnType<typeof getUnitsLineItems>>;
+    let subtotalGbp: number;
+    let collectCode: string;
+    let order: { id: string };
+    try {
+      customerId = await upsertCustomer({ email, phone, name: body.name as string | undefined });
+      lineItems = await getUnitsLineItems(unitIds);
+      subtotalGbp = lineItems.reduce((sum, li) => sum + li.priceGbp, 0);
 
-    let collectCode = generateCollectCode();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const { data: clash } = await db.from("popup_orders").select("id").eq("collect_code", collectCode).maybeSingle();
-      if (!clash) break;
       collectCode = generateCollectCode();
-    }
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data: clash } = await db.from("popup_orders").select("id").eq("collect_code", collectCode).maybeSingle();
+        if (!clash) break;
+        collectCode = generateCollectCode();
+      }
 
-    const { data: order, error: orderError } = await db
-      .from("popup_orders")
-      .insert({
-        event_id: event.id,
-        customer_id: customerId,
-        order_type: "express",
-        source: "express",
-        status: "pending_payment",
-        collect_code: collectCode,
-        hold_id: holdId,
-        subtotal_gbp: subtotalGbp,
-      })
-      .select("id")
-      .single();
-    if (orderError) throw orderError;
+      const { data: created, error: orderError } = await db
+        .from("popup_orders")
+        .insert({
+          event_id: event.id,
+          customer_id: customerId,
+          order_type: "express",
+          source: "express",
+          status: "pending_payment",
+          collect_code: collectCode,
+          hold_id: holdId,
+          subtotal_gbp: subtotalGbp,
+        })
+        .select("id")
+        .single();
+      if (orderError) throw orderError;
+      order = created;
+    } catch (err) {
+      await releaseClaim(holdId, unitIds, event.id, "checkout could not be opened");
+      throw err;
+    }
 
     try {
       const origin = siteOrigin();
