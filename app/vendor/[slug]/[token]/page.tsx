@@ -112,13 +112,23 @@ export default async function VendorHub({
         </Section>
 
         <Section>
-          <p className="text-[15px] font-medium">Your sales</p>
-          <div className="mt-1.5">
-            <Muted>
-              {sales.unitsSold === 0
-                ? "Nothing's sold yet — this updates live once the doors open."
-                : "Updates live as sales come in. Finalized once the event closes."}
-            </Muted>
+          <div className="flex flex-wrap items-baseline justify-between gap-4">
+            <div>
+              <p className="text-[15px] font-medium">Your sales</p>
+              <div className="mt-1.5">
+                <Muted>
+                  {sales.unitsSold === 0
+                    ? "Nothing's sold yet — this updates live once the doors open."
+                    : "Updates live as sales come in. Finalized once the event closes."}
+                </Muted>
+              </div>
+            </div>
+            <Link
+              href={`${base}/sales`}
+              className="text-xs uppercase tracking-[0.2em] underline underline-offset-4 hover:text-neutral-500"
+            >
+              Full breakdown →
+            </Link>
           </div>
           <DetailTable
             evenSplit
