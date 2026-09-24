@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CatalogueItem } from "@/lib/browse";
 
 interface Props {
@@ -390,11 +391,13 @@ function BrandCarousel({
         type="button"
         aria-label="Scroll brands left"
         onClick={() => nudge(-1)}
-        className="absolute left-0 top-0 z-10 hidden h-full w-10 items-center justify-center bg-gradient-to-r from-white to-transparent text-gray-400 hover:text-gray-900 md:flex"
+        className="absolute left-0 top-0 z-10 hidden h-full w-14 items-center justify-start bg-gradient-to-r from-white via-white/90 to-transparent pl-3 md:flex"
       >
-        ‹
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition-colors hover:border-gray-900 hover:text-gray-900">
+          <ChevronLeft className="h-4 w-4" />
+        </span>
       </button>
-      <div ref={scroller} className="scrollbar-hide flex items-center gap-8 overflow-x-auto px-4 py-4 md:gap-12 md:px-12">
+      <div ref={scroller} className="scrollbar-hide flex items-center gap-8 overflow-x-auto px-4 py-4 md:gap-12 md:px-16">
         {brands.map((b) => {
           const slug = logos.get(b);
           const active = selected === b;
@@ -424,9 +427,11 @@ function BrandCarousel({
         type="button"
         aria-label="Scroll brands right"
         onClick={() => nudge(1)}
-        className="absolute right-0 top-0 z-10 hidden h-full w-10 items-center justify-center bg-gradient-to-l from-white to-transparent text-gray-400 hover:text-gray-900 md:flex"
+        className="absolute right-0 top-0 z-10 hidden h-full w-14 items-center justify-end bg-gradient-to-l from-white via-white/90 to-transparent pr-3 md:flex"
       >
-        ›
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition-colors hover:border-gray-900 hover:text-gray-900">
+          <ChevronRight className="h-4 w-4" />
+        </span>
       </button>
     </div>
   );
