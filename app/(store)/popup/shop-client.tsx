@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { sized } from "@/lib/images";
 import type { CatalogueItem } from "@/lib/browse";
 
 interface Props {
@@ -200,21 +202,23 @@ export function ShopClient({ initialProducts, section }: Props) {
             <div className="relative mb-3 aspect-[3/4] overflow-hidden rounded-lg bg-gray-200">
               {p.imageUrls[0] ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.imageUrls[0]}
+                  <Image
+                    src={sized(p.imageUrls[0], 800)}
                     alt={p.title}
-                    className={`h-full w-full object-cover object-top ${
+                    fill
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className={`object-cover object-top ${
                       p.imageUrls[1] ? "transition-opacity duration-300 group-hover:opacity-0" : ""
                     }`}
                   />
                   {/* Second photo (if the product has one) — fades in on hover, like siftag.com's shop grid */}
                   {p.imageUrls[1] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.imageUrls[1]}
+                    <Image
+                      src={sized(p.imageUrls[1], 800)}
                       alt={`${p.title} - alternate view`}
-                      className="absolute inset-0 h-full w-full object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      fill
+                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     />
                   )}
                 </>

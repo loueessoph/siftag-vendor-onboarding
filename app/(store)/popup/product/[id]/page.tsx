@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { sized } from "@/lib/images";
 import { ChevronLeft } from "lucide-react";
 import { AddToBag } from "@/components/store/add-to-bag";
 import { FabricComposition } from "@/components/store/fabric-composition";
@@ -45,8 +47,7 @@ export default async function PopupProductPage({ params }: Props) {
         <div className="space-y-3">
           <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-gray-200">
             {product.image_urls[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.image_urls[0]} alt={product.title} className="h-full w-full object-cover object-top" />
+              <Image src={sized(product.image_urls[0], 1200)} alt={product.title} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover object-top" />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-gray-400">No photo yet</div>
             )}
@@ -54,8 +55,9 @@ export default async function PopupProductPage({ params }: Props) {
           {product.image_urls.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {product.image_urls.slice(1, 5).map((url, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={url} src={url} alt={`${product.title} ${i + 2}`} className="aspect-[3/4] w-full rounded-md object-cover object-top" />
+                <div key={url} className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-gray-200">
+                  <Image src={sized(url, 400)} alt={`${product.title} ${i + 2}`} fill sizes="(max-width: 768px) 25vw, 12vw" className="object-cover object-top" />
+                </div>
               ))}
             </div>
           )}
