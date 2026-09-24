@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/chrome";
-import { Button, Field, Input, Muted, Pill } from "@/components/ui";
+import Link from "next/link";
+import { Button, Input, Muted, Pill } from "@/components/ui";
 import { getActiveEvent, getUnitForStaff, type UnitStatus } from "@/lib/live-event";
 import { setUnitStatusAction, collectOrderAction } from "./actions";
 
@@ -19,9 +20,10 @@ const STATUS_BUTTONS: { value: UnitStatus; label: string }[] = [
 ];
 
 /**
- * The two-tap flow: scan or type the code (tap one), tap the new status
- * (tap two). Plain forms throughout — this is meant to run on a shared
- * iPad at the till, where "does it need JS to work" is not a safe bet.
+ * Tap two of the two-tap flow: the piece was found on the Items page (tap
+ * one, which links here with its code); now tap the new status. Plain forms
+ * throughout — this is meant to run on a shared iPad at the till, where
+ * "does it need JS to work" is not a safe bet.
  */
 export default async function StaffConsole({
   searchParams,
@@ -49,29 +51,30 @@ export default async function StaffConsole({
         </div>
       )}
 
-      <form className="max-w-sm">
-        <Field label="Item code">
-          <div className="flex gap-2">
-            <Input
-              name="code"
-              defaultValue={code ?? ""}
-              placeholder="A1B2C3D4"
-              autoFocus
-              className="uppercase"
-            />
-            <Button type="submit" size="compact">
-              Find
-            </Button>
+      {!code && (
+        <div className="max-w-sm">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Change an item&apos;s status</p>
+          <div className="mt-1">
+            <Muted>
+              Find the piece on the{" "}
+              <Link href="/admin/items" className="underline underline-offset-4 hover:text-neutral-900">
+                Items
+              </Link>{" "}
+              page, by name, brand or the code under its QR, and tap the code to mark it held, in the fitting room, sold or back on the rail.
+            </Muted>
           </div>
-        </Field>
-      </form>
+        </div>
+      )}
 
       {code && !unit && (
-        <p className="mt-6 text-sm text-red-600">No item with that code.</p>
+        <p className="text-sm text-red-600">No item with that code.</p>
       )}
 
       {unit && (
-        <div className="mt-8 max-w-sm border border-neutral-200 p-5">
+        <div className="max-w-sm border border-neutral-200 p-5">
+          <Link href="/admin/items" className="mb-4 inline-block text-[11px] uppercase tracking-[0.2em] text-neutral-500 underline underline-offset-4 hover:text-neutral-900">
+            ← All items
+          </Link>
           <div className="flex gap-4">
             {unit.imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element

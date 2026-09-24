@@ -21,7 +21,8 @@ const money = (n: number | null) => (n == null ? "—" : `£${n.toFixed(2)}`);
  * The storefront's card grid, for staff: each card carries its stock by
  * size and every tag code with its status. Type part of a name, a brand or
  * a tag code to find something; the code under a garment's QR is the
- * quickest way to a specific piece.
+ * quickest way to a specific piece. Tapping a code opens the status
+ * buttons for that garment.
  */
 export function ItemsClient({ items }: { items: AdminItem[] }) {
   const [query, setQuery] = useState("");
@@ -101,14 +102,15 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
                   <span className="flex flex-wrap justify-end gap-x-2 gap-y-0.5">
                     {s.units.length === 0 && <span className="text-neutral-300">no tags</span>}
                     {s.units.map((u) => (
-                      <span
+                      <Link
                         key={u.code}
-                        title={STATUS[u.status].label}
-                        className={`inline-flex items-center gap-1 font-mono ${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${codeMatch && u.code === codeMatch ? "rounded bg-yellow-100 px-1 no-underline" : ""}`}
+                        href={`/admin/staff?code=${u.code}`}
+                        title={`${STATUS[u.status].label} · tap to change`}
+                        className={`inline-flex items-center gap-1 font-mono hover:underline ${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${codeMatch && u.code === codeMatch ? "rounded bg-yellow-100 px-1" : ""}`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${STATUS[u.status].dot}`} />
                         {u.code}
-                      </span>
+                      </Link>
                     ))}
                   </span>
                 </li>
