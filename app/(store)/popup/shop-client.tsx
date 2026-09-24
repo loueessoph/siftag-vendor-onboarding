@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { sized } from "@/lib/images";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import type { CatalogueItem } from "@/lib/browse";
 
 interface Props {
@@ -223,7 +224,7 @@ export function ShopClient({ initialProducts, section }: Props) {
                   )}
                 </>
               ) : (
-                <div className="flex h-full items-center justify-center text-xs text-gray-400">No photo</div>
+                <PhotoPlaceholder />
               )}
             </div>
             <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{p.brandName}</p>

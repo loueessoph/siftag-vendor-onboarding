@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { sized } from "@/lib/images";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import { X } from "lucide-react";
 import { useCart } from "@/components/store/cart";
 
@@ -112,7 +113,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
             return (
               <li key={item.unitCode} className={`flex gap-4 py-4 ${gone ? "opacity-60" : ""}`}>
                 <Link href={`/popup/product/${item.productId}`} className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                  {item.imageUrl && <Image src={sized(item.imageUrl, 200)} alt={item.title} fill sizes="80px" className="object-cover object-top" />}
+                  {item.imageUrl ? <Image src={sized(item.imageUrl, 200)} alt={item.title} fill sizes="80px" className="object-cover object-top" /> : <PhotoPlaceholder />}
                 </Link>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs uppercase tracking-widest text-gray-400">{item.brandName}</p>
