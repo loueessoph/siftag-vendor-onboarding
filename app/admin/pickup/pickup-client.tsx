@@ -100,9 +100,9 @@ export function PickupClient() {
   const done = orders?.filter((o) => o.status === "collected") ?? [];
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
-      <div>
-        <div className="mb-4 flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-neutral-400">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
+      <div className="min-w-0">
+        <div className="mb-4 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.15em] text-neutral-400">
           <span>
             {loadError ? "Not updating" : updatedAt ? `Live · updated ${TIME_S.format(updatedAt)}` : "Connecting…"}
           </span>
@@ -151,7 +151,7 @@ export function PickupClient() {
                       </ul>
                     </div>
 
-                    <div className="flex shrink-0 flex-col items-stretch gap-2 sm:w-52">
+                    <div className="flex w-full flex-col items-stretch gap-2 sm:w-52 sm:shrink-0">
                       {o.packedAt ? (
                         <span className="border border-neutral-900 px-3 py-2 text-center text-[11px] uppercase tracking-[0.15em]">
                           Packed{o.handler ? ` by ${o.handler}` : ""}
@@ -223,8 +223,9 @@ export function PickupClient() {
         )}
       </div>
 
-      <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        <div className="border border-neutral-200 p-5">
+      {/* On a phone the scanner is the job, so it sits above the list. */}
+      <aside className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+        <div className="border border-neutral-200 p-4 sm:p-5">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Confirm a pickup</p>
           <p className="mt-1 text-sm text-neutral-500">Scan the QR on the customer&apos;s phone, or type their code.</p>
           <form
@@ -240,9 +241,10 @@ export function PickupClient() {
               placeholder="ABC123"
               autoCapitalize="characters"
               autoComplete="off"
-              className="min-w-0 flex-1 border border-neutral-300 px-3 py-2.5 font-mono text-base uppercase tracking-[0.2em] focus:border-neutral-900 focus:outline-none"
+              size={8}
+              className="w-full min-w-0 flex-1 border border-neutral-300 px-3 py-2.5 font-mono text-base uppercase tracking-[0.2em] focus:border-neutral-900 focus:outline-none"
             />
-            <button type="submit" disabled={!code.trim() || busy !== null} className="bg-neutral-900 px-4 text-[11px] uppercase tracking-[0.15em] text-white disabled:opacity-50">
+            <button type="submit" disabled={!code.trim() || busy !== null} className="shrink-0 bg-neutral-900 px-4 text-[11px] uppercase tracking-[0.15em] text-white disabled:opacity-50">
               Confirm
             </button>
           </form>
