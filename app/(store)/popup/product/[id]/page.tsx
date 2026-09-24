@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 import { AddToBag } from "@/components/store/add-to-bag";
+import { FabricComposition } from "@/components/store/fabric-composition";
 import { getProductDetail } from "@/lib/browse";
 
 export const dynamic = "force-dynamic"; // status must always be live, never statically cached
@@ -79,6 +80,8 @@ export default async function PopupProductPage({ params }: Props) {
             }}
             sizes={sizes}
           />
+
+          <FabricComposition composition={product.fibre_composition} />
 
           {(brand.story || brand.instagram_handle) && (
             <section className="space-y-2 border-t border-gray-100 pt-5">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 import { AddToBag } from "@/components/store/add-to-bag";
+import { FabricComposition } from "@/components/store/fabric-composition";
 import { getTagDetail } from "@/lib/browse";
 import type { UnitStatus } from "@/lib/live-event";
 
@@ -103,6 +104,8 @@ export default async function PopupTagPage({ params }: Props) {
             sizes={sizeOptions}
             preselect={unit.status === "available" ? { unitCode: unit.code, size: unit.size } : null}
           />
+
+          <FabricComposition composition={product.fibre_composition} />
 
           {(brand.story || brand.instagram_handle) && (
             <section className="space-y-2 border-t border-gray-100 pt-5">
