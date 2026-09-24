@@ -109,8 +109,8 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
 
   return (
     <div className="select-none">
-      <div className="-mx-6 overflow-hidden px-6 pb-4 pt-2">
-        <div className="relative mx-auto aspect-[4/5] w-full max-w-[360px]">
+      <div className="-mx-6 overflow-hidden px-6 pb-3 pt-1">
+        <div className="relative mx-auto aspect-[4/5] w-full" style={{ maxWidth: "var(--deck-w, 360px)" }}>
           {cards.map((card, i) => {
             const pos = (i - index + count) % count; // 0 = top
             const tilt = TILTS[i % TILTS.length];
@@ -195,7 +195,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
         </div>
       </div>
 
-      <div className="mx-auto mt-3 flex w-full max-w-[360px] items-center justify-center gap-6">
+      <div className="mx-auto mt-2 flex w-full items-center justify-center gap-6" style={{ maxWidth: "var(--deck-w, 360px)" }}>
         <button type="button" aria-label="Previous card" onClick={retreat} className="p-2 text-gray-400 transition-colors hover:text-gray-900">
           <ChevronLeft className="h-4 w-4" />
         </button>

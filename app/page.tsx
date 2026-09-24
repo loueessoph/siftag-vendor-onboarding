@@ -38,29 +38,34 @@ export default function IntroPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-6 py-10 text-center md:py-14">
+    <main className="h-dvh overflow-y-auto bg-white text-gray-900">
+      {/* Sized to the viewport: the deck is scaled from the height so the whole page fits without scrolling
+          on a phone or a laptop; only a very short window would need to scroll. */}
+      <div
+        className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center px-6 py-4 text-center"
+        style={{ ["--deck-w" as string]: "min(360px, 82vw, 35dvh)" }}
+      >
         <Link href="/popup" aria-label="Enter the Siftag pop-up shop">
-          <Image src="/SiftagLogo.png" alt="Siftag" width={160} height={53} className="h-auto w-[140px] md:w-[160px]" priority />
+          <Image src="/SiftagLogo.png" alt="Siftag" width={160} height={53} className="h-auto w-[110px] md:w-[140px]" priority />
         </Link>
-        <p className="mt-5 text-[11px] uppercase tracking-[0.25em] text-gray-500">The Natural Fibre Edit · Fabrica X, King&apos;s Cross · 25–27 September</p>
+        <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-gray-500 md:text-[11px]">The Natural Fibre Edit · 25–27 September</p>
 
-        <div className="mt-8 w-full">
+        <div className="mt-3 w-full">
           <CardDeck cards={cards} />
         </div>
 
-        <div className="mt-10 max-w-sm space-y-2 text-sm leading-relaxed text-gray-600">
+        <div className="mt-2 max-w-sm space-y-1 text-[13px] leading-snug text-gray-600 md:text-sm">
           <p>Siftag is the first and largest polyester-free fashion platform. This is a preview of what&apos;s inside Fabrica X this weekend.</p>
           <p>Sure of your size? Buy online and collect at the Express counter. Want to try it on? Come and visit.</p>
         </div>
 
         <Link
           href="/popup"
-          className="mt-7 inline-flex items-center justify-center rounded-full bg-gray-900 px-8 py-3 text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-gray-800"
+          className="mt-3 inline-flex items-center justify-center rounded-full bg-gray-900 px-8 py-2.5 text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-gray-800 md:mt-4"
         >
           Enter the pop-up
         </Link>
-        <p className="mt-5 text-[10px] uppercase tracking-[0.2em] text-gray-400">
+        <p className="mt-2.5 text-[9px] uppercase tracking-[0.2em] text-gray-400 md:text-[10px]">
           All sales are final · 36–40 York Way, N1 9AB · 9am–6pm · free entry
         </p>
       </div>
