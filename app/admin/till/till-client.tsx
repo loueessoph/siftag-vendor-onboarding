@@ -10,9 +10,10 @@ type Props = { terminal: boolean; staffName: string };
 const money = (n: number) => `£${n.toFixed(2)}`;
 
 /**
- * Scan feedback without an audio file: the single short high beep of a shop
- * barcode scanner when a tag goes in the basket, two low buzzes when it's
- * refused. The AudioContext is created on the first tap (browsers block
+ * Scan feedback without an audio file, only for scans (camera, hardware
+ * scanner or a typed code), never for the +/- buttons: the single short high
+ * beep of a shop barcode scanner when a tag goes in the basket, two low
+ * buzzes when it's refused. The AudioContext is created on the first tap (browsers block
  * sound before any gesture) and shared after that.
  */
 let audio: AudioContext | null = null;
@@ -132,7 +133,6 @@ export function TillClient({ terminal, staffName }: Props) {
         return;
       }
       const extra = json as TillLine & { created: boolean };
-      beep("ok");
       setBasket((b) => [...b, extra]);
       if (extra.created) setError(`No spare tag for ${line.productTitle} (${line.size ?? "one size"}) was on record, so one was added: ${extra.unitCode}.`);
     } catch {
@@ -388,10 +388,7 @@ export function TillClient({ terminal, staffName }: Props) {
                     type="button"
                     aria-label="One more"
                     disabled={busy}
-                    onClick={() => {
-                      prepareAudio();
-                      addAnother(sample);
-                    }}
+                    onClick={() => addAnother(sample)}
                     className="h-9 w-9 rounded-full border border-neutral-300 text-lg leading-none hover:border-neutral-900 disabled:opacity-40"
                   >
                     +
