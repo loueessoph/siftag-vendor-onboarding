@@ -38,12 +38,12 @@ export default function IntroPage() {
   }));
 
   return (
-    <main className="h-dvh overflow-y-auto bg-white text-gray-900">
-      {/* Sized to the viewport: the deck is scaled from the height so the whole page fits without scrolling
-          on a phone or a laptop; only a very short window would need to scroll. */}
+    <main className="min-h-dvh bg-white text-gray-900">
+      {/* The deck is scaled from the viewport height so the whole page fits a phone or a laptop
+          without scrolling; the page itself still scrolls normally if a screen is shorter than that. */}
       <div
-        className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center px-6 py-4 text-center"
-        style={{ ["--deck-w" as string]: "min(360px, 82vw, 35dvh)" }}
+        className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center px-6 py-5 text-center"
+        style={{ ["--deck-w" as string]: "min(360px, 78vw, 36dvh)" }}
       >
         <Link href="/popup" aria-label="Enter the Siftag pop-up shop">
           <Image src="/SiftagLogo.png" alt="Siftag" width={160} height={53} className="h-auto w-[110px] md:w-[140px]" priority />
@@ -55,7 +55,7 @@ export default function IntroPage() {
         </div>
 
         <p className="mt-3 max-w-xs text-[13px] leading-snug text-gray-600 md:text-sm">
-          The first and largest polyester-free platform. Buy online and collect at Fabrica X, or come and try it on.
+          Siftag is the first and largest polyester-free platform. Shop the pop-up and collect at Fabrica X, or come and try it on in person.
         </p>
 
         <Link
