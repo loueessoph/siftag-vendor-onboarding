@@ -90,42 +90,49 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
   return (
     <div className="select-none">
       {/* Clipped with room for the shadow, so a card leaving the pile never crosses into the copy beside it. */}
-      <div className="-mx-6 -my-8 overflow-hidden px-6 py-8">
-      <div className="relative mx-auto aspect-[4/5] w-full max-w-[420px]" style={{ perspective: "1200px" }}>
+      <div className="-mx-6 overflow-hidden px-6 pb-6 pt-2">
+      <div className="relative mx-auto aspect-[4/5] w-full max-w-[380px]">
         {cards.map((card, i) => {
           const pos = (i - index + count) % count; // 0 = top
           const isLeaving = leaving?.card === i;
           const onTop = pos === 0 && !isLeaving;
-          const depth = Math.min(pos, 2);
+          // A fanned pile: each card behind sits a touch lower and turned
+          // alternately left and right, four of them showing under the top.
+          const stacked = (depth: number) => {
+            const d = Math.min(depth, 4);
+            const tilt = d === 0 ? 0 : (d % 2 === 0 ? 1 : -1) * d * 1.6;
+            return `translateY(${d * 4}px) rotate(${tilt}deg) scale(${1 - d * 0.015})`;
+          };
           let transform: string;
           let zIndex: number;
           let opacity = 1;
           if (isLeaving && pos === 0) {
-            // Phase 1: sliding out, still on top.
             transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
             zIndex = count + 1;
           } else if (isLeaving) {
-            // Phase 2: gliding round to the bottom of the pile from the side it left by.
-            transform = `translateY(${depth * 12}px) scale(${1 - depth * 0.05})`;
+            transform = stacked(4);
             zIndex = 0;
           } else if (onTop) {
             transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
             zIndex = count;
           } else {
-            transform = `translateY(${depth * 12}px) scale(${1 - depth * 0.05})`;
+            transform = stacked(pos);
             zIndex = count - pos;
-            opacity = pos > 2 ? 0 : 1;
+            opacity = pos > 4 ? 0 : 1;
           }
           const transition = onTop && dragging ? "none" : `transform 420ms ${EASE}, opacity 300ms ${EASE}`;
           const interactive = onTop && !busy.current;
           const image = (
+            // The cards are already web-sized JPEGs (scripts made them 900px wide),
+            // so they're served as-is rather than through the image optimiser.
             <Image
               src={card.src}
               alt={pos <= 2 ? card.alt : ""}
               fill
+              unoptimized
               priority={pos <= 1}
-              loading={pos <= 3 ? "eager" : "lazy"}
-              sizes="(max-width: 640px) 90vw, 420px"
+              loading={pos <= 5 ? "eager" : "lazy"}
+              sizes="(max-width: 640px) 90vw, 380px"
               className="object-cover"
               draggable={false}
             />
@@ -133,13 +140,13 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
           return (
             <div
               key={card.src}
-              className="absolute inset-0 touch-pan-y overflow-hidden rounded-2xl bg-gray-100"
+              className="absolute inset-0 touch-pan-y overflow-hidden rounded-xl bg-white ring-1 ring-black/10"
               style={{
                 transform,
+                transformOrigin: "50% 100%",
                 zIndex,
                 opacity,
                 transition,
-                boxShadow: pos === 0 ? "0 18px 40px rgba(0,0,0,0.18)" : "0 6px 16px rgba(0,0,0,0.10)",
                 cursor: interactive ? (dragging ? "grabbing" : "grab") : "default",
                 pointerEvents: interactive ? "auto" : "none",
               }}
