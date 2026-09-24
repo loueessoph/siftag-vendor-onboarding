@@ -96,7 +96,8 @@ export async function upsertCustomer(params: { phone?: string; email?: string; n
 
   // Email is the unique key on the table, so it's checked first; phone is
   // the fallback for a shopper who gave no email. A returning shopper's
-  // record picks up whatever they've told us since.
+  // record takes the details they gave this time, since those are the ones
+  // to contact them on now.
   const name = params.name?.trim() || null;
   type Customer = { id: string; phone: string | null; name: string | null };
   let existing: Customer | null = null;
@@ -110,8 +111,8 @@ export async function upsertCustomer(params: { phone?: string; email?: string; n
   }
   if (existing) {
     const patch: Record<string, string> = {};
-    if (phone && !existing.phone) patch.phone = phone;
-    if (name && !existing.name) patch.name = name;
+    if (phone && phone !== existing.phone) patch.phone = phone;
+    if (name && name !== existing.name) patch.name = name;
     if (Object.keys(patch).length) await db.from("popup_customers").update(patch).eq("id", existing.id);
     return existing.id;
   }
@@ -385,6 +386,9 @@ export type OrderSummary = {
   /** Stripe's hosted payment page, only while the order is still awaiting payment. */
   checkout_url: string | null;
   items: Array<{ unit_code: string; product_title: string; brand_name: string; size: string | null; price_gbp: number }>;
+  /** Where the confirmation went, so the page can say so. */
+  customer_email: string | null;
+  customer_name: string | null;
   created_at: string;
   paid_at: string | null;
   collected_at: string | null;
@@ -424,9 +428,18 @@ export async function getOrderSummary(collectCode: string): Promise<OrderSummary
     }));
   }
 
+  type Contact = { email: string | null; name: string | null };
+  let customer: Contact | null = null;
+  if (order.customer_id) {
+    const { data } = await fromPopup("popup_customers").select("email, name").eq("id", order.customer_id).maybeSingle();
+    customer = (data as Contact | null) ?? null;
+  }
+
   return {
     collect_code: order.collect_code,
     order_type: order.order_type,
+    customer_email: customer?.email ?? null,
+    customer_name: customer?.name ?? null,
     status: order.status,
     // popup_orders.subtotal_gbp is a Postgres `numeric` column — PostgREST
     // serializes those as strings (to avoid float precision loss), not the

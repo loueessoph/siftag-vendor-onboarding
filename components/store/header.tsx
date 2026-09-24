@@ -15,8 +15,11 @@ export function StoreHeader() {
   return (
     <header className="w-full bg-white" role="banner">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pt-3 md:px-6">
-        <div className="flex flex-1 items-center">
+        <div className="flex flex-1 items-center gap-4">
           <span className="hidden text-[11px] tracking-widest text-gray-500 md:inline">FABRICA X · 25–27 SEPT</span>
+          <Link href="/popup/order" className="text-[11px] tracking-widest text-gray-500 transition-colors hover:text-gray-900">
+            MY ORDER
+          </Link>
         </div>
         <div className="shrink-0">
           <Link href="/popup" aria-label="Siftag Pop-Up shop">

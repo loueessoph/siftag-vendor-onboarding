@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 import type { OrderSummary } from "@/lib/express";
 import { useCart } from "@/components/store/cart";
@@ -16,7 +17,7 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
   paid: {
     title: "Payment received",
-    body: "Show this code (or QR) at the Express counter to collect. We've also emailed it to you.",
+    body: "Your items are reserved and waiting for you at the pop-up.",
   },
   collected: {
     title: "Collected",
@@ -44,7 +45,7 @@ export function ConfirmClient({ collectCode }: Props) {
       try {
         const res = await fetch(`/api/popup/express/orders/${collectCode}`, { cache: "no-store" });
         if (!res.ok) {
-          setError("Order not found.");
+          setError(res.status === 404 ? "We couldn't find an order with that code." : "Couldn't load this order. Refresh to try again.");
           return;
         }
         const json: OrderSummary = await res.json();
@@ -76,7 +77,15 @@ export function ConfirmClient({ collectCode }: Props) {
     }
   }, [order, cart]);
 
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (error)
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-red-600">{error}</p>
+        <Link href="/popup/order" className="inline-block text-sm text-neutral-700 underline underline-offset-4">
+          Look up an order by its pickup code
+        </Link>
+      </div>
+    );
   if (!order) return <p className="text-sm text-neutral-400">Loading…</p>;
 
   const copy = STATUS_COPY[order.status] ?? STATUS_COPY.pending_payment;
@@ -102,10 +111,47 @@ export function ConfirmClient({ collectCode }: Props) {
         </p>
       )}
 
-      {order.status !== "pending_payment" && (
+      {order.status === "paid" && (
+        <div className="space-y-5">
+          <div className="flex flex-col items-center gap-3 border border-neutral-200 px-4 py-6">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Your pickup code</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {qrDataUrl && <img src={qrDataUrl} alt="Pickup QR code" className="h-48 w-48" />}
+            <p className="text-2xl font-mono tracking-[0.3em] text-neutral-900">{order.collect_code}</p>
+          </div>
+          <ol className="space-y-3 text-sm leading-relaxed text-neutral-700">
+            <li className="flex gap-3">
+              <span className="font-mono text-neutral-400">1</span>
+              <span>
+                <strong className="font-medium text-neutral-900">Take a screenshot of this page now.</strong> You&apos;ll need the
+                code above to collect.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-neutral-400">2</span>
+              <span>
+                {order.customer_email ? (
+                  <>
+                    We&apos;ve also emailed it to <strong className="font-medium text-neutral-900">{order.customer_email}</strong>.
+                    Check your spam folder if it hasn&apos;t arrived in a few minutes.
+                  </>
+                ) : (
+                  <>We&apos;ve also emailed it to you. Check your spam folder if it hasn&apos;t arrived in a few minutes.</>
+                )}
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-neutral-400">3</span>
+              <span>
+                Come to the <strong className="font-medium text-neutral-900">Express counter at Fabrica X</strong> and show the QR
+                code or read out the code. Your order will be packed and ready.
+              </span>
+            </li>
+          </ol>
+        </div>
+      )}
+      {(order.status === "collected" || order.status === "uncollected") && (
         <div className="flex flex-col items-center gap-3 py-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {qrDataUrl && <img src={qrDataUrl} alt="Collect QR" className="h-48 w-48" />}
           <p className="text-2xl font-mono tracking-[0.3em] text-neutral-900">{order.collect_code}</p>
         </div>
       )}

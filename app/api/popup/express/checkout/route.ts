@@ -39,10 +39,19 @@ export async function POST(request: NextRequest) {
   if (unitCodes.length > MAX_ITEMS) {
     return NextResponse.json({ error: `Max ${MAX_ITEMS} items per order` }, { status: 400 });
   }
-  const email = typeof body.email === "string" && body.email.trim() ? body.email.trim() : undefined;
-  const phone = typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : undefined;
-  if (!email && !phone) {
-    return NextResponse.json({ error: "Enter an email or phone number" }, { status: 400 });
+  // Email carries the confirmation and pickup code; name and phone are how
+  // the counter reaches a shopper whose order is waiting or has a problem.
+  const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  if (name.split(" ").length < 2) {
+    return NextResponse.json({ error: "Enter your first and last name" }, { status: 400 });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
+  }
+  if (phone.replace(/\D/g, "").length < 7) {
+    return NextResponse.json({ error: "Enter a phone number" }, { status: 400 });
   }
 
   const db = supabaseAdmin();
@@ -68,7 +77,7 @@ export async function POST(request: NextRequest) {
     let collectCode: string;
     let order: { id: string };
     try {
-      customerId = await upsertCustomer({ email, phone, name: body.name as string | undefined });
+      customerId = await upsertCustomer({ email, phone, name });
       lineItems = await getUnitsLineItems(unitIds);
       subtotalGbp = lineItems.reduce((sum, li) => sum + li.priceGbp, 0);
 

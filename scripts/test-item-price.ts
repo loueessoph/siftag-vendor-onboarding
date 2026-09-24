@@ -9,6 +9,8 @@
  */
 import { supabaseAdmin } from "../lib/supabase/server";
 import { TEST_BRAND_NAME } from "../lib/test-brand";
+import { getActiveEvent } from "../lib/live-event";
+import { randomBytes } from "node:crypto";
 
 const mode = process.argv[2];
 if (mode !== "free" && mode !== "restore") {
@@ -31,3 +33,26 @@ const { data: variants, error } = await db
   .select("id, size, popup_price");
 if (error) throw error;
 console.log(`${TEST_BRAND_NAME} · Juliette Top L now £${price} (${variants?.length ?? 0} variant rows)`);
+
+// Each rehearsal sells a unit, so keep a few in stock for the next one.
+if (mode === "free") {
+  const WANT = 5;
+  const event = await getActiveEvent();
+  const variantIds = (variants ?? []).map((v) => v.id);
+  const { data: units } = await db.from("popup_units").select("id, status").in("popup_variant_id", variantIds);
+  const available = (units ?? []).filter((u) => u.status === "available").length;
+  const rows = [];
+  for (let i = available; i < WANT; i++) {
+    rows.push({
+      event_id: event.id,
+      popup_variant_id: variantIds[0],
+      unit_code: randomBytes(4).toString("hex").toUpperCase(),
+      status: "available",
+    });
+  }
+  if (rows.length) {
+    const { error: unitError } = await db.from("popup_units").insert(rows);
+    if (unitError) throw unitError;
+  }
+  console.log(`${available + rows.length} test units available (${rows.length} added)`);
+}
