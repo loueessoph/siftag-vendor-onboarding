@@ -32,6 +32,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+        // Browser extensions (Grammarly and friends) add attributes here before React loads; ignore them.
+        suppressHydrationWarning
         className={`${geistSans.className} ${gildaDisplay.variable} antialiased bg-white text-neutral-900`}
       >
         {children}
