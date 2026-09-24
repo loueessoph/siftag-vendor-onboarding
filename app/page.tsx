@@ -40,7 +40,9 @@ export default function IntroPage() {
   return (
     <main className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-6 py-10 text-center md:py-14">
-        <Image src="/SiftagLogo.png" alt="Siftag" width={100} height={33} className="h-auto w-[90px]" priority />
+        <Link href="/popup" aria-label="Enter the Siftag pop-up shop">
+          <Image src="/SiftagLogo.png" alt="Siftag" width={160} height={53} className="h-auto w-[140px] md:w-[160px]" priority />
+        </Link>
         <p className="mt-5 text-[11px] uppercase tracking-[0.25em] text-gray-500">The Natural Fibre Edit · Fabrica X, King&apos;s Cross · 25–27 September</p>
 
         <div className="mt-8 w-full">
