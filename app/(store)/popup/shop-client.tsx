@@ -19,14 +19,13 @@ const SORT_OPTIONS: { value: SortValue; label: string }[] = [
   { value: "price-high", label: "Price: High to Low" },
 ];
 
-export type Section = "all" | "women" | "men" | "accessories" | "brands";
+export type Section = "all" | "women" | "men" | "accessories";
 
 const SUB_CATEGORIES: Record<Section, string[]> = {
   all: [],
   women: ["Tops", "Bottoms", "Dresses"],
   men: ["Tops", "Bottoms"],
   accessories: [],
-  brands: [],
 };
 
 function formatComposition(fibreComposition: string | null): string {
@@ -76,6 +75,11 @@ export function ShopClient({ initialProducts, section }: Props) {
   }, []);
 
   const brands = useMemo(() => [...new Set(products.map((p) => p.brandName))].sort(), [products]);
+  const brandLogos = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of products) if (p.brandSlug && !map.has(p.brandName)) map.set(p.brandName, p.brandSlug);
+    return map;
+  }, [products]);
   const sizes = useMemo(
     () => [...new Set(products.flatMap((p) => p.sizes.map((s) => s.size).filter(Boolean)))].sort() as string[],
     [products]
@@ -113,26 +117,10 @@ export function ShopClient({ initialProducts, section }: Props) {
 
   return (
     <div>
+      {/* The brands, as a row of logos. Tap one to see only that brand; tap again for everyone. */}
+      <BrandCarousel brands={brands} logos={brandLogos} selected={brand} onSelect={(b) => setBrand(brand === b ? "all" : b)} />
+
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        {section === "brands" && (
-          <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pt-3">
-            <button
-              onClick={() => setBrand("all")}
-              className={`shrink-0 px-2.5 py-1 text-[11px] uppercase tracking-wide ${brand === "all" ? "text-gray-900 underline" : "text-gray-400"}`}
-            >
-              All brands
-            </button>
-            {brands.map((b) => (
-              <button
-                key={b}
-                onClick={() => setBrand(b)}
-                className={`shrink-0 px-2.5 py-1 text-[11px] uppercase tracking-wide ${brand === b ? "text-gray-900 underline" : "text-gray-400"}`}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
-        )}
         {SUB_CATEGORIES[section].length > 0 && (
           <div className="flex gap-1 pt-1 overflow-x-auto scrollbar-hide">
             <button
@@ -372,6 +360,74 @@ export function ShopClient({ initialProducts, section }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A sideways-scrolling strip of the brands' own logos, siftag.com's
+ * "shop by brand" idea for a pop-up with a dozen labels. Logos are the
+ * files scripts/fetch-brand-logos.mjs pulled from each brand's site; a
+ * brand without one shows its name set small.
+ */
+function BrandCarousel({
+  brands,
+  logos,
+  selected,
+  onSelect,
+}: {
+  brands: string[];
+  logos: Map<string, string>;
+  selected: string;
+  onSelect: (brand: string) => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const nudge = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  if (brands.length === 0) return null;
+  return (
+    <div className="relative -mx-4 border-b border-gray-100 md:-mx-6">
+      <button
+        type="button"
+        aria-label="Scroll brands left"
+        onClick={() => nudge(-1)}
+        className="absolute left-0 top-0 z-10 hidden h-full w-10 items-center justify-center bg-gradient-to-r from-white to-transparent text-gray-400 hover:text-gray-900 md:flex"
+      >
+        ‹
+      </button>
+      <div ref={scroller} className="scrollbar-hide flex items-center gap-8 overflow-x-auto px-4 py-4 md:gap-12 md:px-12">
+        {brands.map((b) => {
+          const slug = logos.get(b);
+          const active = selected === b;
+          const muted = selected !== "all" && !active;
+          return (
+            <button
+              key={b}
+              type="button"
+              onClick={() => onSelect(b)}
+              aria-pressed={active}
+              title={b}
+              className={`flex h-12 shrink-0 items-center border-b-2 pb-1 transition-all ${
+                active ? "border-gray-900 opacity-100" : "border-transparent opacity-80 hover:opacity-100"
+              } ${muted ? "opacity-40" : ""}`}
+            >
+              {slug ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/brand-logos/${slug}.png`} alt={b} className="max-h-8 w-auto max-w-[8rem] object-contain md:max-h-9" />
+              ) : (
+                <span className="whitespace-nowrap text-[11px] font-medium tracking-widest text-gray-700">{b.toUpperCase()}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        aria-label="Scroll brands right"
+        onClick={() => nudge(1)}
+        className="absolute right-0 top-0 z-10 hidden h-full w-10 items-center justify-center bg-gradient-to-l from-white to-transparent text-gray-400 hover:text-gray-900 md:flex"
+      >
+        ›
+      </button>
     </div>
   );
 }

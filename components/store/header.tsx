@@ -13,7 +13,6 @@ export const SECTIONS: { key: string; label: string }[] = [
   { key: "women", label: "WOMEN" },
   { key: "men", label: "MEN" },
   { key: "accessories", label: "ACCESSORIES" },
-  { key: "brands", label: "BRANDS" },
 ];
 
 /**

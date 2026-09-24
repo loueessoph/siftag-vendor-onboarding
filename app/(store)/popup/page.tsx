@@ -4,7 +4,7 @@ import { ShopClient, type Section } from "./shop-client";
 export const dynamic = "force-dynamic"; // live status, never statically cached
 export const metadata = { title: "Siftag Pop-Up", robots: { index: false, follow: false } };
 
-const SECTIONS: Section[] = ["all", "women", "men", "accessories", "brands"];
+const SECTIONS: Section[] = ["all", "women", "men", "accessories"];
 
 interface Props {
   searchParams?: Promise<{ section?: string }>;

@@ -24,6 +24,8 @@ export type CatalogueItem = {
   productId: string;
   title: string;
   brandName: string;
+  /** Names the logo at public/brand-logos/<slug>.png, where one exists. */
+  brandSlug: string;
   /** First image is the default; a second (if the product has one) shows on hover. */
   imageUrls: string[];
   priceGbp: number | null;
@@ -45,12 +47,12 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
   await releaseExpiredHolds(event.id);
 
   const { data: brands, error: brandsError } = await fromPopup("popup_brands")
-    .select("id, name")
+    .select("id, name, slug")
     .neq("name", "ZZ Test Brand");
   if (brandsError) throw brandsError;
   const brandIds = (brands ?? []).map((b) => b.id);
   if (brandIds.length === 0) return [];
-  const brandNameById = new Map((brands ?? []).map((b) => [b.id, b.name as string]));
+  const brandById = new Map((brands ?? []).map((b) => [b.id, b as { name: string; slug: string }]));
 
   const [products, allVariants, allEventUnits] = await Promise.all([
     fetchAllRows<{
@@ -166,7 +168,8 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
       item: {
         productId: p.id,
         title: p.title,
-        brandName: brandNameById.get(p.popup_brand_id) ?? "Unknown",
+        brandName: brandById.get(p.popup_brand_id)?.name ?? "Unknown",
+        brandSlug: brandById.get(p.popup_brand_id)?.slug ?? "",
         imageUrls: images,
         priceGbp: prices.length ? Math.min(...prices) : null,
         fibreComposition: p.fibre_composition,
