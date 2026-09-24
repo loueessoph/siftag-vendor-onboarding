@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { sized } from "@/lib/images";
 import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import { X } from "lucide-react";
-import { useCart } from "@/components/store/cart";
+import { BAG_LIMIT, useCart } from "@/components/store/cart";
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 
@@ -89,6 +89,42 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
     }
   }
 
+  // One line per product and size, with a quantity; the garments underneath stay separate.
+  const groups = cart.items.reduce<Array<{ key: string; sample: (typeof cart.items)[number]; codes: string[] }>>((acc, item) => {
+    const key = `${item.productId}|${item.size ?? ""}|${item.colour ?? ""}`;
+    const g = acc.find((x) => x.key === key);
+    if (g) g.codes.push(item.unitCode);
+    else acc.push({ key, sample: item, codes: [item.unitCode] });
+    return acc;
+  }, []);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  async function oneMore(group: (typeof groups)[number]) {
+    if (cart.count >= BAG_LIMIT) {
+      setError(`Your bag is full (${BAG_LIMIT} items).`);
+      return;
+    }
+    setBusyKey(group.key);
+    setError(null);
+    try {
+      const res = await fetch("/api/popup/cart/another", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitCode: group.codes[0], exclude: cart.items.map((i) => i.unitCode) }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "No more of that size in stock.");
+        return;
+      }
+      cart.add(json);
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   if (!cart.ready) return <p className="text-sm text-gray-400">Loading…</p>;
 
   if (cart.items.length === 0) {
@@ -108,28 +144,56 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
       <div>
         {notice && <p className="mb-4 text-sm text-gray-600">{notice}</p>}
         <ul className="divide-y divide-gray-100 border-y border-gray-100">
-          {cart.items.map((item) => {
-            const gone = statuses[item.unitCode] && statuses[item.unitCode] !== "available";
+          {groups.map(({ key, sample, codes }) => {
+            const goneCodes = codes.filter((c) => statuses[c] && statuses[c] !== "available");
+            const liveCount = codes.length - goneCodes.length;
             return (
-              <li key={item.unitCode} className={`flex gap-4 py-4 ${gone ? "opacity-60" : ""}`}>
-                <Link href={`/popup/product/${item.productId}`} className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                  {item.imageUrl ? <Image src={sized(item.imageUrl, 200)} alt={item.title} fill sizes="80px" className="object-cover object-top" /> : <PhotoPlaceholder />}
+              <li key={key} className={`flex gap-4 py-4 ${liveCount === 0 ? "opacity-60" : ""}`}>
+                <Link href={`/popup/product/${sample.productId}`} className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                  {sample.imageUrl ? <Image src={sized(sample.imageUrl, 200)} alt={sample.title} fill sizes="80px" className="object-cover object-top" /> : <PhotoPlaceholder />}
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs uppercase tracking-widest text-gray-400">{item.brandName}</p>
-                  <Link href={`/popup/product/${item.productId}`} className="block truncate text-sm text-gray-900">
-                    {item.title}
+                  <p className="truncate text-xs uppercase tracking-widest text-gray-400">{sample.brandName}</p>
+                  <Link href={`/popup/product/${sample.productId}`} className="block truncate text-sm text-gray-900">
+                    {sample.title}
                   </Link>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {[item.colour, item.size ? `Size ${item.size}` : "One size"].filter(Boolean).join(" · ")}
+                    {[sample.colour, sample.size ? `Size ${sample.size}` : "One size"].filter(Boolean).join(" · ")}
                   </p>
-                  <p className="mt-1 text-sm text-gray-900">{money(item.priceGbp)}</p>
-                  {gone && <p className="mt-1 text-xs text-red-600">No longer available, sorry. It won't be charged.</p>}
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        aria-label="One fewer"
+                        onClick={() => cart.remove(codes[codes.length - 1])}
+                        className="h-7 w-7 rounded-full border border-gray-300 text-sm leading-none hover:border-gray-900"
+                      >
+                        −
+                      </button>
+                      <span className="w-5 text-center text-sm tabular-nums">{codes.length}</span>
+                      <button
+                        type="button"
+                        aria-label="One more"
+                        disabled={busyKey === key}
+                        onClick={() => oneMore({ key, sample, codes })}
+                        className="h-7 w-7 rounded-full border border-gray-300 text-sm leading-none hover:border-gray-900 disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span className="text-sm text-gray-900">{money(sample.priceGbp * liveCount)}</span>
+                    {codes.length > 1 && <span className="text-xs text-gray-400">{money(sample.priceGbp)} each</span>}
+                  </div>
+                  {goneCodes.length > 0 && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {goneCodes.length === codes.length ? "No longer available, sorry. It won't be charged." : `${goneCodes.length} of these just sold; ${liveCount} will be charged.`}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
-                  onClick={() => cart.remove(item.unitCode)}
-                  aria-label={`Remove ${item.title}`}
+                  onClick={() => cart.removeMany(codes)}
+                  aria-label={`Remove ${sample.title}`}
                   className="self-start rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-900"
                 >
                   <X className="h-4 w-4" />

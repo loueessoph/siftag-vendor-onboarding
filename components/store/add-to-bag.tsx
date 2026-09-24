@@ -10,6 +10,7 @@ export type SizeOption = {
   status: string;
   available_count: number;
   buy_unit_code: string | null;
+  available_unit_codes: string[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -38,23 +39,33 @@ export function AddToBag({
   const cart = useCart();
   const router = useRouter();
   const [chosen, setChosen] = useState<string | null>(preselect?.size ?? null);
+  const [qty, setQty] = useState(1);
   const [flash, setFlash] = useState<string | null>(null);
 
   const option = sizes.find((s) => (s.size ?? "") === (chosen ?? ""));
-  const unitCode = preselect && preselect.size === chosen ? preselect.unitCode : option?.buy_unit_code ?? null;
-  const inBag = unitCode ? cart.has(unitCode) : false;
-  const canAdd = Boolean(unitCode) && option?.status === "available" && !inBag;
+  // The garments of this size that could go in the bag: the scanned one
+  // first where there is one, then the rest, minus any already in the bag.
+  const candidates = (() => {
+    if (!option || option.status !== "available") return [];
+    const codes = preselect && preselect.size === chosen ? [preselect.unitCode, ...option.available_unit_codes] : option.available_unit_codes;
+    return [...new Set(codes)].filter((c) => !cart.has(c));
+  })();
+  const alreadyIn = option ? option.available_unit_codes.filter((c) => cart.has(c)).length + (preselect && preselect.size === chosen && cart.has(preselect.unitCode) && !option.available_unit_codes.includes(preselect.unitCode) ? 1 : 0) : 0;
+  const maxQty = Math.max(0, Math.min(candidates.length, BAG_LIMIT - cart.count));
+  const canAdd = maxQty > 0;
+  const inBag = alreadyIn > 0 && maxQty === 0;
 
   function add(): boolean {
-    if (!unitCode || !option) return false;
-    if (cart.count >= BAG_LIMIT) {
-      setFlash(`Your bag is full (${BAG_LIMIT} items).`);
-      return false;
+    if (!option || maxQty === 0) return false;
+    const take = Math.min(qty, maxQty);
+    let added = 0;
+    for (const unitCode of candidates.slice(0, take)) {
+      if (cart.add({ ...product, unitCode, size: option.size })) added++;
     }
-    const ok = cart.add({ ...product, unitCode, size: option.size });
-    setFlash(ok ? "Added to your bag" : "Already in your bag");
+    setFlash(added === 0 ? "Already in your bag" : added === 1 ? "Added to your bag" : `Added ${added} to your bag`);
     setTimeout(() => setFlash(null), 2500);
-    return ok;
+    setQty(1);
+    return added > 0;
   }
 
   return (
@@ -89,6 +100,19 @@ export function AddToBag({
         {option && option.status !== "available" && (
           <p className="mt-2 text-xs text-gray-500">{STATUS_LABEL[option.status] ?? option.status} in this size.</p>
         )}
+        {option && option.status === "available" && (maxQty > 1 || alreadyIn > 0) && (
+          <div className="mt-4 flex items-center gap-4">
+            <span className="text-xs uppercase tracking-widest text-gray-500">Qty</span>
+            <div className="flex items-center gap-2">
+              <button type="button" aria-label="One fewer" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-8 w-8 rounded-full border border-gray-300 text-base leading-none hover:border-gray-900 disabled:opacity-40">−</button>
+              <span className="w-5 text-center text-sm tabular-nums">{Math.min(qty, Math.max(1, maxQty))}</span>
+              <button type="button" aria-label="One more" disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))} className="h-8 w-8 rounded-full border border-gray-300 text-base leading-none hover:border-gray-900 disabled:opacity-40">+</button>
+            </div>
+            <span className="text-xs text-gray-400">
+              {alreadyIn > 0 ? `${alreadyIn} in your bag · ` : ""}{candidates.length} left
+            </span>
+          </div>
+        )}
         {!sizes.some((s) => s.status === "available") && (
           <p className="mt-2 text-xs text-gray-500">Nothing in stock in any size right now. Ask floor staff.</p>
         )}
@@ -107,7 +131,7 @@ export function AddToBag({
             </>
           ) : (
             <>
-              <ShoppingBag className="h-4 w-4" /> {chosen === null && !preselect ? "Select a size" : "Add to bag"}
+              <ShoppingBag className="h-4 w-4" /> {chosen === null && !preselect ? "Select a size" : qty > 1 ? `Add ${Math.min(qty, maxQty)} to bag` : "Add to bag"}
             </>
           )}
         </button>
