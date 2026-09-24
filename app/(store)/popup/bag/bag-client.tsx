@@ -20,7 +20,7 @@ const money = (n: number) => `£${n.toFixed(2)}`;
 export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
   const cart = useCart();
   const [statuses, setStatuses] = useState<Record<string, string>>({});
-  const [contact, setContact] = useState({ email: "" });
+  const [contact, setContact] = useState({ firstName: "", lastName: "", email: "", phone: "" });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -58,8 +58,20 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
 
   async function checkout() {
     if (buyable.length === 0) return;
-    if (!contact.email.trim()) {
-      setError("Enter your email for the collection code.");
+    const firstName = contact.firstName.trim();
+    const lastName = contact.lastName.trim();
+    const email = contact.email.trim();
+    const phone = contact.phone.trim();
+    if (!firstName || !lastName) {
+      setError("Enter your first and last name.");
+      return;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Enter a valid email for your confirmation and pickup code.");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 7) {
+      setError("Enter a phone number we can reach you on about your order.");
       return;
     }
     setSubmitting(true);
@@ -68,7 +80,12 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
       const res = await fetch("/api/popup/express/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unitCodes: buyable.map((i) => i.unitCode), email: contact.email.trim() }),
+        body: JSON.stringify({
+          unitCodes: buyable.map((i) => i.unitCode),
+          name: `${firstName} ${lastName}`,
+          email,
+          phone,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -218,18 +235,18 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
           <span className="text-xl text-gray-900">{money(total)}</span>
         </div>
 
-        <label className="mt-8 block">
-          <span className="text-[11px] tracking-widest text-gray-500">EMAIL</span>
-          <input
-            value={contact.email}
-            onChange={(e) => setContact({ ...contact, email: e.target.value })}
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="mt-1 w-full border-0 border-b border-gray-300 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-gray-900 focus:outline-none focus:ring-0"
-          />
-        </label>
-        <p className="mt-1.5 text-[11px] text-gray-400">We'll send your confirmation and collection code here.</p>
+        <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-5">
+          <Field label="FIRST NAME" value={contact.firstName} onChange={(v) => setContact({ ...contact, firstName: v })} autoComplete="given-name" placeholder="Ada" />
+          <Field label="LAST NAME" value={contact.lastName} onChange={(v) => setContact({ ...contact, lastName: v })} autoComplete="family-name" placeholder="Lovelace" />
+          <div className="col-span-2">
+            <Field label="EMAIL" type="email" value={contact.email} onChange={(v) => setContact({ ...contact, email: v })} autoComplete="email" placeholder="you@example.com" />
+            <p className="mt-1.5 text-[11px] text-gray-400">Your confirmation and pickup code go here.</p>
+          </div>
+          <div className="col-span-2">
+            <Field label="PHONE" type="tel" value={contact.phone} onChange={(v) => setContact({ ...contact, phone: v })} autoComplete="tel" placeholder="07700 900000" />
+            <p className="mt-1.5 text-[11px] text-gray-400">Only used if we need to reach you about this order.</p>
+          </div>
+        </div>
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
@@ -247,5 +264,36 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
         )}
       </aside>
     </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  autoComplete?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] tracking-widest text-gray-500">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        type={type}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        required
+        className="mt-1 w-full border-0 border-b border-gray-300 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-gray-900 focus:outline-none focus:ring-0"
+      />
+    </label>
   );
 }
