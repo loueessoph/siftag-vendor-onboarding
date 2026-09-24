@@ -1,5 +1,8 @@
 "use client";
 
+import Image from "next/image";
+import { sized } from "@/lib/images";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import { useCallback, useEffect, useState } from "react";
 import type { PickupOrder } from "@/lib/pickup";
 import { CameraScanner } from "@/components/admin/camera-scanner";
@@ -73,7 +76,9 @@ export function PickupClient() {
         setError(json.message ?? json.error ?? "That didn't work.");
         return false;
       }
-      if (action === "collected") setNotice(`${collectCode.toUpperCase()} handed over. Thanks!`);
+      if (action === "collected") setNotice(`${collectCode.toUpperCase()} collected. Thanks!`);
+      else if (action === "packed") setNotice(`${collectCode.toUpperCase()} is ready for pickup. ${json.message ?? ""}`.trim());
+      else setNotice(null);
       await load();
       return true;
     } catch {
@@ -136,16 +141,39 @@ export function PickupClient() {
                     <div className="min-w-0">
                       <p className="font-mono text-lg tracking-[0.2em]">{o.collectCode}</p>
                       <p className="mt-0.5 text-xs text-neutral-500">
-                        {o.paidAt ? `Paid ${TIME.format(new Date(o.paidAt))}` : "Paid"}
-                        {o.customer.name ? ` · ${o.customer.name}` : ""}
-                        {o.customer.email ? ` · ${o.customer.email}` : ""}
-                        {` · ${money(o.totalGbp)}`}
+                        {o.paidAt ? `Paid ${TIME.format(new Date(o.paidAt))}` : "Paid"} · {money(o.totalGbp)} ·{" "}
+                        {o.items.length} item{o.items.length === 1 ? "" : "s"}
                       </p>
-                      <ul className="mt-3 space-y-1 text-sm">
+                      <p className="mt-1 text-sm">
+                        <span className="font-medium">{o.customer.name ?? "Name not given"}</span>
+                        {o.customer.phone && (
+                          <>
+                            {" · "}
+                            <a href={`tel:${o.customer.phone.replace(/\s+/g, "")}`} className="underline underline-offset-4">
+                              {o.customer.phone}
+                            </a>
+                          </>
+                        )}
+                        {o.customer.email && <span className="text-neutral-500"> · {o.customer.email}</span>}
+                      </p>
+                      <ul className="mt-3 space-y-2">
                         {o.items.map((it) => (
-                          <li key={it.unitCode}>
-                            {it.productTitle} <span className="text-neutral-500">· {it.brandName}{it.size ? ` · ${it.size}` : ""}</span>{" "}
-                            <span className="font-mono text-xs text-neutral-400">{it.unitCode}</span>
+                          <li key={it.unitCode} className="flex items-center gap-3">
+                            <div className="relative h-20 w-16 shrink-0 overflow-hidden bg-neutral-100">
+                              {it.imageUrl ? (
+                                <Image src={sized(it.imageUrl, 160)} alt="" fill sizes="64px" className="object-cover" />
+                              ) : (
+                                <PhotoPlaceholder />
+                              )}
+                            </div>
+                            <div className="min-w-0 text-sm">
+                              <p className="font-medium">{it.productTitle}</p>
+                              <p className="text-neutral-500">
+                                {it.brandName}
+                                {it.size ? ` · Size ${it.size}` : ""}
+                              </p>
+                              <p className="font-mono text-xs text-neutral-400">Tag {it.unitCode}</p>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -154,11 +182,11 @@ export function PickupClient() {
                     <div className="flex w-full flex-col items-stretch gap-2 sm:w-52 sm:shrink-0">
                       {o.packedAt ? (
                         <span className="border border-neutral-900 px-3 py-2 text-center text-[11px] uppercase tracking-[0.15em]">
-                          Packed{o.handler ? ` by ${o.handler}` : ""}
+                          Ready for pickup{o.handler ? ` · packed by ${o.handler}` : ""}
                         </span>
                       ) : o.handler ? (
                         <span className="border border-neutral-300 px-3 py-2 text-center text-[11px] uppercase tracking-[0.15em] text-neutral-600">
-                          {mine ? "You're on it" : `${o.handler} is on it`}
+                          {mine ? "You're packing this" : `${o.handler} is packing this`}
                         </span>
                       ) : (
                         <button
@@ -167,7 +195,7 @@ export function PickupClient() {
                           onClick={() => act(o.collectCode, "take")}
                           className="bg-neutral-900 px-3 py-2 text-[11px] uppercase tracking-[0.15em] text-white hover:bg-neutral-800 disabled:opacity-50"
                         >
-                          I&apos;ll take this one
+                          Start packing
                         </button>
                       )}
                       {!o.packedAt && (mine || !o.handler) && (
@@ -177,7 +205,7 @@ export function PickupClient() {
                           onClick={() => act(o.collectCode, "packed")}
                           className="border border-neutral-900 px-3 py-2 text-[11px] uppercase tracking-[0.15em] hover:bg-neutral-50 disabled:opacity-50"
                         >
-                          Mark packed
+                          Mark ready for pickup
                         </button>
                       )}
                       {o.packedAt && (
@@ -187,7 +215,7 @@ export function PickupClient() {
                           onClick={() => act(o.collectCode, "collected")}
                           className="bg-neutral-900 px-3 py-2 text-[11px] uppercase tracking-[0.15em] text-white hover:bg-neutral-800 disabled:opacity-50"
                         >
-                          Handed over
+                          Customer has collected
                         </button>
                       )}
                       {(mine || o.packedAt) && (
@@ -197,7 +225,7 @@ export function PickupClient() {
                           onClick={() => act(o.collectCode, o.packedAt ? "unpacked" : "release")}
                           className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 underline underline-offset-4 hover:text-neutral-900"
                         >
-                          {o.packedAt ? "Not packed after all" : "Let someone else take it"}
+                          {o.packedAt ? "Undo: not ready yet" : "Stop packing this"}
                         </button>
                       )}
                     </div>
@@ -210,7 +238,7 @@ export function PickupClient() {
 
         {done.length > 0 && (
           <div className="mt-10">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Handed over in the last two hours</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Collected in the last two hours</p>
             <ul className="mt-3 divide-y divide-neutral-100 border-y border-neutral-100 text-sm text-neutral-500">
               {done.map((o) => (
                 <li key={o.collectCode} className="flex justify-between py-2">
@@ -226,7 +254,7 @@ export function PickupClient() {
       <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
         <div className="border border-neutral-200 p-4 sm:p-5">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Confirm a pickup</p>
-          <p className="mt-1 text-sm text-neutral-500">Scan the QR on the customer&apos;s phone, or type their code.</p>
+          <p className="mt-1 text-sm text-neutral-500">Scan the QR on the customer&apos;s phone, or type their pickup code.</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -264,7 +292,7 @@ export function PickupClient() {
           </div>
         </div>
         <p className="text-xs leading-relaxed text-neutral-400">
-          Confirming marks the order collected and moves it to the handed-over list. If a customer arrives before their order is packed, confirm it anyway once it&apos;s in their hands.
+          Confirming marks the order as collected. If a customer arrives before their order is packed, hand it over and confirm anyway.
         </p>
       </aside>
     </div>

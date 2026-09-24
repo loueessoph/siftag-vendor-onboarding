@@ -228,6 +228,8 @@ ${textLines}
 
 ${textCollect}
 
+We'll email you again as soon as it's packed and ready to collect.
+
 ${VENUE_LINE}
 ${HOURS_LINE}
 
@@ -261,7 +263,7 @@ Questions? Reply to this email.`;
             </td>
           </tr>
         </table>
-        <p style="margin:0;font-size:13px;line-height:1.5;color:#737373;">Either the code or the QR on that page will do.</p>`
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#737373;">Either the code or the QR on that page will do. We'll email you again as soon as it's packed and ready to collect.</p>`
     : `
         <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#171717;">Your collection code, in case you need to refer to this purchase:</p>
         <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;letter-spacing:0.12em;color:#171717;">${escapeHtml(order.collectCode)}</p>`;
@@ -329,5 +331,117 @@ Questions? Reply to this email.`;
  */
 export async function notifyOrderPaid(order: PaidOrder): Promise<SendResult> {
   const { subject, text, html } = renderOrderPaid(order);
+  return send({ to: order.email, subject, text, html, replyTo: ADMIN });
+}
+
+type ReadyOrder = {
+  email: string;
+  name: string | null;
+  collectCode: string;
+  items: Array<{ productTitle: string; brandName: string; size: string | null }>;
+};
+
+/** Both bodies of the "packed and ready" email. */
+export function renderOrderReady(order: ReadyOrder): { subject: string; text: string; html: string } {
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002").replace(/\/$/, "");
+  const confirmUrl = `${origin}/popup/express/confirm/${order.collectCode}`;
+  const first = order.name?.trim().split(" ")[0];
+  const greeting = `Hi${first ? ` ${first}` : ""},`;
+  const textLines = order.items
+    .map((i) => `- ${i.productTitle}, ${i.brandName}${i.size ? `, size ${i.size}` : ""}`)
+    .join("\n");
+
+  const text = `${greeting}
+
+Your order is packed and ready to collect at the Express counter.
+
+${textLines}
+
+Show this code, or the QR on this page, when you arrive:
+
+${order.collectCode}
+${confirmUrl}
+
+${VENUE_LINE}
+${HOURS_LINE}
+
+Questions? Reply to this email.`;
+
+  const rows = order.items
+    .map(
+      (i) => `
+          <tr>
+            <td style="padding:10px 0;border-top:1px solid #e5e5e5;font-size:15px;line-height:1.4;color:#171717;">
+              ${escapeHtml(i.productTitle)}
+              <div style="font-size:13px;color:#737373;">${escapeHtml(i.brandName)}${i.size ? ` · Size ${escapeHtml(i.size)}` : ""}</div>
+            </td>
+          </tr>`
+    )
+    .join("");
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Your Siftag Pop-Up order ${escapeHtml(order.collectCode)} is ready</title>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+    <tr>
+      <td align="center" style="padding:32px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#171717;">
+          <tr>
+            <td style="padding:0 0 28px;">
+              <p style="margin:0 0 10px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#737373;">Siftag Pop-Up</p>
+              <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:28px;line-height:1.2;color:#171717;">Your order is ready to collect.</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 0 24px;font-size:15px;line-height:1.5;color:#171717;">${escapeHtml(greeting)}<br><br>It's packed and waiting for you at the Express counter.</td>
+          </tr>
+          <tr>
+            <td style="padding:0 0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 0 32px;">
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#171717;">Show this code, or the QR on your order page, when you arrive:</p>
+              <p style="margin:0 0 20px;font-family:Georgia,'Times New Roman',serif;font-size:36px;letter-spacing:0.12em;color:#171717;">${escapeHtml(order.collectCode)}</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#171717;">
+                    <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;padding:14px 22px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Open your QR code</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 0 0;border-top:1px solid #e5e5e5;font-size:13px;line-height:1.6;color:#737373;">
+              ${escapeHtml(VENUE_LINE)}<br>
+              ${escapeHtml(HOURS_LINE)}<br><br>
+              Questions? Reply to this email.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject: `Your Siftag Pop-Up order ${order.collectCode} is ready to collect`, text, html };
+}
+
+/**
+ * Sent when the counter marks an online order packed. Best effort, like the
+ * confirmation: the order is ready whether or not the email goes.
+ */
+export async function notifyOrderReady(order: ReadyOrder): Promise<SendResult> {
+  const { subject, text, html } = renderOrderReady(order);
   return send({ to: order.email, subject, text, html, replyTo: ADMIN });
 }

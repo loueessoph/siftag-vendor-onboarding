@@ -7,6 +7,7 @@
 
 import { fromPopup, supabaseAdmin } from "./supabase/server";
 import { getUnitsLineItems } from "./express";
+import { notifyOrderReady } from "./email";
 
 export type PickupOrder = {
   collectCode: string;
@@ -18,7 +19,7 @@ export type PickupOrder = {
   handler: string | null;
   takenAt: string | null;
   packedAt: string | null;
-  items: Array<{ unitCode: string; productTitle: string; brandName: string; size: string | null }>;
+  items: Array<{ unitCode: string; productTitle: string; brandName: string; size: string | null; imageUrl: string | null }>;
 };
 
 export async function listPickups(): Promise<PickupOrder[]> {
@@ -40,7 +41,7 @@ export async function listPickups(): Promise<PickupOrder[]> {
     const l = lineByUnit.get(it.popup_unit_id as string);
     if (!l) continue;
     const list = itemsByOrder.get(it.order_id as string) ?? [];
-    list.push({ unitCode: l.unitCode, productTitle: l.productTitle, brandName: l.brandName, size: l.size });
+    list.push({ unitCode: l.unitCode, productTitle: l.productTitle, brandName: l.brandName, size: l.size, imageUrl: l.imageUrl });
     itemsByOrder.set(it.order_id as string, list);
   }
 
@@ -73,7 +74,7 @@ export async function pickupAction(collectCode: string, action: PickupAction, st
   const db = supabaseAdmin();
   const code = collectCode.trim().toUpperCase();
   const { data: order, error } = await fromPopup("popup_orders")
-    .select("id, status, source, pickup_handler, packed_at")
+    .select("id, status, source, pickup_handler, packed_at, customer_id")
     .eq("collect_code", code)
     .maybeSingle();
   if (error) throw error;
@@ -113,5 +114,32 @@ export async function pickupAction(collectCode: string, action: PickupAction, st
   }
   const { error: upErr } = await db.from("popup_orders").update(patch).eq("id", order.id);
   if (upErr) throw upErr;
+
+  // First time it's marked ready, tell the customer. Marking it ready again
+  // after an undo doesn't send a second copy.
+  if (action === "packed" && !order.packed_at) {
+    const emailed = await sendReadyEmail(order.id, order.customer_id as string | null, code);
+    return { ok: true, message: emailed ? `Emailed ${emailed} that it's ready.` : "Marked ready. No email address on the order, so nothing was sent." };
+  }
   return { ok: true };
+}
+
+/** Returns the address it went to, or null when there was nobody to tell or sending failed. */
+async function sendReadyEmail(orderId: string, customerId: string | null, collectCode: string): Promise<string | null> {
+  if (!customerId) return null;
+  try {
+    const { data: customer } = await fromPopup("popup_customers").select("email, name").eq("id", customerId).maybeSingle();
+    if (!customer?.email) return null;
+    const { data: orderItems } = await fromPopup("popup_order_items").select("popup_unit_id").eq("order_id", orderId);
+    const items = await getUnitsLineItems((orderItems ?? []).map((i) => i.popup_unit_id as string));
+    const result = await notifyOrderReady({ email: customer.email, name: customer.name ?? null, collectCode, items });
+    if (!result.delivered) {
+      console.error("Ready-for-pickup email failed", result, collectCode);
+      return null;
+    }
+    return customer.email;
+  } catch (err) {
+    console.error("Ready-for-pickup email failed", err, collectCode);
+    return null;
+  }
 }

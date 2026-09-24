@@ -152,7 +152,7 @@ export async function getUnitsLineItems(unitIds: string[]) {
 
   const productIds = [...new Set((variants ?? []).map((v) => v.popup_product_id))];
   const { data: products, error: productsError } = await fromPopup("popup_products")
-    .select("id, title, popup_brand_id")
+    .select("id, title, popup_brand_id, image_url")
     .in("id", productIds);
   if (productsError) throw productsError;
 
@@ -177,6 +177,7 @@ export async function getUnitsLineItems(unitIds: string[]) {
       size: variant.size as string | null,
       priceGbp: price,
       productTitle: product.title as string,
+      imageUrl: (product.image_url as string | null) ?? null,
       brandId: product.popup_brand_id as string,
       brandName: brand.name as string,
     };
@@ -389,6 +390,8 @@ export type OrderSummary = {
   /** Where the confirmation went, so the page can say so. */
   customer_email: string | null;
   customer_name: string | null;
+  /** The counter has packed it: the shopper can walk up and collect. */
+  ready: boolean;
   created_at: string;
   paid_at: string | null;
   collected_at: string | null;
@@ -440,6 +443,7 @@ export async function getOrderSummary(collectCode: string): Promise<OrderSummary
     order_type: order.order_type,
     customer_email: customer?.email ?? null,
     customer_name: customer?.name ?? null,
+    ready: order.status === "paid" && !!order.packed_at,
     status: order.status,
     // popup_orders.subtotal_gbp is a Postgres `numeric` column — PostgREST
     // serializes those as strings (to avoid float precision loss), not the

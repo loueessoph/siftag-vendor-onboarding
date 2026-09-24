@@ -88,7 +88,9 @@ export function ConfirmClient({ collectCode }: Props) {
     );
   if (!order) return <p className="text-sm text-neutral-400">Loading…</p>;
 
-  const copy = STATUS_COPY[order.status] ?? STATUS_COPY.pending_payment;
+  const copy = order.ready
+    ? { title: "Ready to collect", body: "Your order is packed and waiting at the Express counter." }
+    : (STATUS_COPY[order.status] ?? STATUS_COPY.pending_payment);
 
   return (
     <div className="space-y-6">
@@ -144,7 +146,8 @@ export function ConfirmClient({ collectCode }: Props) {
               <span className="font-mono text-neutral-400">3</span>
               <span>
                 Come to the <strong className="font-medium text-neutral-900">Express counter at Fabrica X</strong> and show the QR
-                code or read out the code. Your order will be packed and ready.
+                code or read out the code.{" "}
+                {order.ready ? "It's packed and ready now." : "We'll email you again as soon as it's packed and ready."}
               </span>
             </li>
           </ol>
