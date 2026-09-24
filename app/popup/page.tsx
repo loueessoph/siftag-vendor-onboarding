@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getBrowseCatalogue } from "@/lib/browse";
 import { ShopClient } from "./shop-client";
 
@@ -10,7 +11,17 @@ export default async function PopupBrowsePage() {
   return (
     <main className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-normal tracking-widest uppercase text-gray-600 mb-6">Siftag Pop-Up</h1>
+        <div className="mb-6">
+          <Image
+            src="/SiftagLogo.png"
+            alt="Siftag"
+            width={100}
+            height={33}
+            priority
+            className="w-[100px] md:w-[120px] h-auto"
+          />
+          <p className="mt-2 text-xs uppercase tracking-widest text-gray-400">Pop-Up</p>
+        </div>
         <ShopClient initialProducts={products} />
       </div>
     </main>
