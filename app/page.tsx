@@ -47,22 +47,20 @@ export default function IntroPage() {
           <CardDeck cards={cards} />
         </div>
 
-        <div className="mt-10 max-w-md space-y-3 text-[15px] leading-relaxed text-gray-600">
-          <p>
-            Siftag is the first and largest polyester-free fashion platform. This is a preview of what&apos;s inside Fabrica X this weekend.
-          </p>
-          <p>
-            Sure of your size? Buy online and collect at the Express counter. Want to try it on? Come and visit. <span className="text-gray-900">All sales are final.</span>
-          </p>
+        <div className="mt-10 max-w-sm space-y-2 text-sm leading-relaxed text-gray-600">
+          <p>Siftag is the first and largest polyester-free fashion platform. This is a preview of what&apos;s inside Fabrica X this weekend.</p>
+          <p>Sure of your size? Buy online and collect at the Express counter. Want to try it on? Come and visit.</p>
         </div>
 
         <Link
           href="/popup"
-          className="mt-8 inline-flex items-center justify-center rounded-full bg-gray-900 px-10 py-3.5 text-xs uppercase tracking-widest text-white transition-colors hover:bg-gray-800"
+          className="mt-7 inline-flex items-center justify-center rounded-full bg-gray-900 px-8 py-3 text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-gray-800"
         >
           Enter the pop-up
         </Link>
-        <p className="mt-3 text-[11px] text-gray-400">36–40 York Way, N1 9AB · 9am to 6pm · free entry</p>
+        <p className="mt-5 text-[10px] uppercase tracking-[0.2em] text-gray-400">
+          All sales are final · 36–40 York Way, N1 9AB · 9am–6pm · free entry
+        </p>
       </div>
     </main>
   );

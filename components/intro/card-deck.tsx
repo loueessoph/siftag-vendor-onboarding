@@ -195,20 +195,17 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
         </div>
       </div>
 
-      <div className="mx-auto mt-4 flex w-full max-w-[360px] items-center justify-between">
-        <button type="button" aria-label="Previous card" onClick={retreat} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
-          <ChevronLeft className="h-5 w-5" />
+      <div className="mx-auto mt-3 flex w-full max-w-[360px] items-center justify-center gap-6">
+        <button type="button" aria-label="Previous card" onClick={retreat} className="p-2 text-gray-400 transition-colors hover:text-gray-900">
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <div className="flex items-center gap-1.5">
-          {cards.map((c, i) => (
-            <span key={c.src} className={`h-1 rounded-full transition-all duration-300 ${i === index ? "w-4 bg-gray-900" : "w-1 bg-gray-300"}`} />
-          ))}
-        </div>
-        <button type="button" aria-label="Next card" onClick={() => advance(-1)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900">
-          <ChevronRight className="h-5 w-5" />
+        <span className="w-14 text-center text-[11px] tabular-nums tracking-[0.2em] text-gray-500">
+          {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+        </span>
+        <button type="button" aria-label="Next card" onClick={() => advance(-1)} className="p-2 text-gray-400 transition-colors hover:text-gray-900">
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
-      <p className="mt-2 text-center text-[11px] text-gray-400">Swipe to see the line-up · tap a card to see that brand&apos;s rail</p>
     </div>
   );
 }
