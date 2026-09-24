@@ -16,6 +16,7 @@ const ADMIN_NAV = [
 /** What a floor-staff account can reach: the console and the till. */
 const STAFF_NAV = [
   { href: "/admin/staff", label: "Floor staff" },
+  { href: "/admin/items", label: "Items" },
   { href: "/admin/till", label: "Checkout" },
 ];
 
