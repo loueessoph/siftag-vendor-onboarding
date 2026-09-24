@@ -1,16 +1,16 @@
 /**
- * Outbound email.
+ * Outbound email, sent as a Google account over SMTP (Gmail or Google
+ * Workspace) with an app password. No DNS to verify: Google authenticates
+ * its own domain.
  *
- * Deliberately behind one interface. Resend is what's wired up, but nothing
- * else in the codebase knows that, so swapping to Postmark or SendGrid later
- * is one file.
- *
- * With no RESEND_API_KEY set, sending is a no-op that logs what it *would*
- * have sent and reports back that it didn't. That matters: an unsent
- * "contract signed" notice must never look like a sent one, so callers get a
- * `delivered` flag rather than silence.
+ * Deliberately behind one interface, so swapping providers later is one
+ * file. With GMAIL_USER and GMAIL_APP_PASSWORD unset, sending is a no-op
+ * that logs what it *would* have sent and reports back that it didn't.
+ * That matters: an unsent "contract signed" notice must never look like a
+ * sent one, so callers get a `delivered` flag rather than silence.
  */
 
+import nodemailer from "nodemailer";
 import type { BrandRow } from "./brands";
 import type { SelectionSummary } from "./selection";
 import { KEY_DATES, formatDate, stockArrivalFor } from "./dates";
@@ -29,44 +29,33 @@ type Message = {
 const FROM = process.env.EMAIL_FROM ?? "Siftag <brands@siftag.com>";
 const ADMIN = process.env.ADMIN_EMAIL ?? "brands@siftag.com";
 
+/** Gmail's limit is 2,000 messages a day on Workspace and 500 on a personal account, plenty here. */
 export async function send(message: Message): Promise<SendResult> {
-  const key = process.env.RESEND_API_KEY;
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
 
-  if (!key) {
+  if (!user || !pass) {
     console.warn(
-      `[email] NOT SENT (no RESEND_API_KEY) to=${message.to} subject="${message.subject}"\n${message.text}`
+      `[email] NOT SENT (no GMAIL_USER/GMAIL_APP_PASSWORD) to=${message.to} subject="${message.subject}"\n${message.text}`
     );
     return { delivered: false, reason: "No email provider configured" };
   }
 
+  // Gmail sends as the authenticated account; EMAIL_FROM only lends its display name.
+  const displayName = FROM.match(/^(.*?)\s*</)?.[1]?.trim() || "Siftag Pop-Up";
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM,
-        to: [message.to],
-        subject: message.subject,
-        text: message.text,
-        reply_to: message.replyTo,
-      }),
+    const transport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+    await transport.sendMail({
+      from: `${displayName} <${user}>`,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      replyTo: message.replyTo,
     });
-
-    if (!res.ok) {
-      const detail = await res.text();
-      console.error(`[email] provider rejected: ${res.status} ${detail}`);
-      return { delivered: false, reason: `Provider returned ${res.status}` };
-    }
     return { delivered: true };
   } catch (error) {
     console.error("[email] send failed", error);
-    return {
-      delivered: false,
-      reason: error instanceof Error ? error.message : "Send failed",
-    };
+    return { delivered: false, reason: error instanceof Error ? error.message : "Send failed" };
   }
 }
 
