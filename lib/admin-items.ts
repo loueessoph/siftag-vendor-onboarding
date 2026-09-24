@@ -1,8 +1,9 @@
 /**
  * Every sellable item as the admin sees it: what the shopper sees on the
  * card, plus each size's garments with their tag code and live status.
- * Unlike the storefront this includes products with no stock yet and the
- * test brand, so nothing is hidden from the people running the floor.
+ * Only what will be on the floor: rejected products are left out, as they
+ * are from tags and the storefront. Products with no stock yet still show,
+ * so staff can see what a brand has ticked but not declared.
  */
 
 import { fromPopup } from "./supabase/server";
@@ -46,7 +47,7 @@ export async function listAdminItems(): Promise<AdminItem[]> {
       approval_status: string;
       popup_brand_id: string;
     }>("popup_products", "id, title, image_url, image_urls, fibre_composition, care_notes, approval_status, popup_brand_id", (q) =>
-      q.eq("is_excluded", false)
+      q.eq("is_excluded", false).neq("approval_status", "rejected")
     ),
     fetchAllRows<{
       id: string;

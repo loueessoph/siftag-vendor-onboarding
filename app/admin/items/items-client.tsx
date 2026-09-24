@@ -77,9 +77,6 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
               ) : (
                 <PhotoPlaceholder />
               )}
-              {item.approval === "rejected" && (
-                <span className="absolute left-2 top-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">Rejected</span>
-              )}
             </Link>
             <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{item.brandName}</p>
             <h3 className="mb-1 text-sm text-gray-900">{item.title}</h3>
