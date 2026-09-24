@@ -6,6 +6,7 @@ import { CameraScanner } from "@/components/admin/camera-scanner";
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 const TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+const TIME_S = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Europe/London" });
 
 /**
  * Two halves. The list: every paid online order, oldest first, with who's
@@ -21,22 +22,41 @@ export function PickupClient() {
   const [code, setCode] = useState("");
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await fetch("/api/admin/pickup", { cache: "no-store" });
-      if (!res.ok) return;
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLoadError(json.detail ?? json.error ?? `The server answered ${res.status}.`);
+        return;
+      }
       setOrders(json.orders);
       setMe(json.me);
+      setLoadError(null);
+      setUpdatedAt(new Date());
     } catch {
-      /* keep what we have */
+      setLoadError("Can't reach the server. Check the connection; this page keeps retrying.");
+    } finally {
+      setRefreshing(false);
     }
   }, []);
+  // Live: every five seconds, plus whenever the tab comes back into view.
   useEffect(() => {
     load();
-    const id = setInterval(load, 8000);
-    return () => clearInterval(id);
+    const id = setInterval(load, 5000);
+    const onVisible = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [load]);
 
   async function act(collectCode: string, action: "take" | "release" | "packed" | "unpacked" | "collected") {
@@ -82,11 +102,26 @@ export function PickupClient() {
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
       <div>
+        <div className="mb-4 flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-neutral-400">
+          <span>
+            {loadError ? "Not updating" : updatedAt ? `Live · updated ${TIME_S.format(updatedAt)}` : "Connecting…"}
+          </span>
+          <button type="button" onClick={load} disabled={refreshing} className="underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        {loadError && (
+          <div className="mb-4 border border-red-600 px-4 py-3 text-sm text-red-600">
+            <p className="font-medium">Couldn&apos;t load the orders.</p>
+            <p className="mt-1">{loadError}</p>
+            <p className="mt-1 text-xs text-red-500">Retrying every few seconds.</p>
+          </div>
+        )}
         {error && <p className="mb-4 border border-red-600 px-4 py-3 text-sm text-red-600">{error}</p>}
         {notice && <p className="mb-4 border border-neutral-900 px-4 py-3 text-sm">{notice}</p>}
 
         {orders === null ? (
-          <p className="text-sm text-neutral-400">Loading…</p>
+          !loadError && <p className="text-sm text-neutral-400">Fetching orders…</p>
         ) : waiting.length === 0 ? (
           <div className="border border-dashed border-neutral-300 px-6 py-16 text-center text-sm text-neutral-500">
             No online orders waiting. New ones appear here the moment they&apos;re paid.

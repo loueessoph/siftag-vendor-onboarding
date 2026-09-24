@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ orders: await listPickups(), me: session.name }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("Pickup list failed", err);
-    return NextResponse.json({ error: "Could not load orders" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+    const hint = /pickup_handler|packed_at|pickup_taken_at/.test(message)
+      ? "The database is missing the pickup columns: run supabase/migrations/0005_order_pickup.sql in the Supabase SQL editor."
+      : message;
+    return NextResponse.json({ error: "Could not load orders", detail: hint }, { status: 500 });
   }
 }
 
