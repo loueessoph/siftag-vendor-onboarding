@@ -139,6 +139,9 @@ export function ExpressCheckoutClient({ initialCodes, cancelledCode }: Props) {
       <p className="text-xs text-center text-neutral-400">
         No try-on before purchase — this is a pay-now, collect-at-counter order.
       </p>
+      <p className="text-xs text-center leading-relaxed text-neutral-400">
+        Checkout is completely secure: payment is taken on Stripe&apos;s own page, and your card details are never seen or stored by Siftag.
+      </p>
     </div>
   );
 }

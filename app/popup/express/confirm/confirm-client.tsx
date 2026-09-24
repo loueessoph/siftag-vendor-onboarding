@@ -87,6 +87,11 @@ export function ConfirmClient({ collectCode }: Props) {
           Pay now — £{order.subtotal_gbp?.toFixed(2)}
         </a>
       )}
+      {order.status === "pending_payment" && (
+        <p className="text-xs text-center leading-relaxed text-neutral-400">
+          Secure payment by Stripe. Your card details are never seen or stored by Siftag.
+        </p>
+      )}
 
       {order.status !== "pending_payment" && (
         <div className="flex flex-col items-center gap-3 py-4">
