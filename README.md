@@ -176,7 +176,7 @@ one of three ways, all in `lib/till.ts`:
 |---|---|---|
 | Card reader | `STRIPE_TERMINAL_LOCATION_ID` is set | A `card_present` PaymentIntent is sent to the first online reader at that location; `payment_intent.succeeded` marks the order paid |
 | Card by QR | no reader configured | A Checkout Session shown as a QR; the customer pays on their phone |
-| Cash | always | Staff confirm; the order is marked paid with `payment_method = 'cash'` and no Stripe call |
+| Cash | not offered | The pop-up is card only. `lib/till.ts` keeps a cash path (`payment_method = 'cash'`, no Stripe call) but the till doesn't expose it and the route refuses it |
 
 While a card payment is in flight the till polls `/api/admin/till/status`,
 which also asks Stripe directly, so a sale completes even if the webhook is

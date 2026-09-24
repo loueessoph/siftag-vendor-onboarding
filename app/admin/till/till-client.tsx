@@ -153,9 +153,8 @@ export function TillClient({ terminal, staffName }: Props) {
     return acc;
   }, []);
 
-  async function charge(mode: "terminal" | "qr" | "cash") {
+  async function charge(mode: "terminal" | "qr") {
     if (basket.length === 0) return;
-    if (mode === "cash" && !window.confirm(`Take ${money(total)} in cash and mark these ${basket.length} item${basket.length === 1 ? "" : "s"} as sold?`)) return;
     setBusy(true);
     setError(null);
     try {
@@ -261,9 +260,7 @@ export function TillClient({ terminal, staffName }: Props) {
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Order {order.collectCode}</p>
           <p className="mt-3 font-display text-4xl">{money(order.totalGbp)}</p>
           {paid ? (
-            <p className="mt-3 text-sm text-neutral-900">
-              Paid {order.mode === "cash" ? "in cash" : "by card"}. Hand over the items.
-            </p>
+            <p className="mt-3 text-sm text-neutral-900">Paid by card. Hand over the items.</p>
           ) : order.status === "cancelled" ? (
             <p className="mt-3 text-sm text-red-600">{order.message ?? "This sale was cancelled."}</p>
           ) : order.mode === "terminal" ? (
@@ -425,13 +422,6 @@ export function TillClient({ terminal, staffName }: Props) {
         >
           {terminal ? `Charge ${money(total)} on card reader` : `Charge ${money(total)} by card (QR)`}
         </button>
-        <button
-          onClick={() => charge("cash")}
-          disabled={busy || basket.length === 0}
-          className="w-full rounded-full border border-neutral-900 py-4 text-sm uppercase tracking-wide disabled:opacity-40"
-        >
-          Paid in cash
-        </button>
         {basket.length > 0 && (
           <button
             type="button"
@@ -444,7 +434,7 @@ export function TillClient({ terminal, staffName }: Props) {
           </button>
         )}
         <p className="pt-2 text-center text-xs leading-relaxed text-neutral-400">
-          Card payments are processed securely by Stripe. Card details are entered on Stripe&apos;s own page or reader and are never seen or stored by Siftag.
+          Card only. Payments are processed securely by Stripe: card details are entered on Stripe&apos;s own page or reader and are never seen or stored by Siftag.
         </p>
       </div>
     </div>
