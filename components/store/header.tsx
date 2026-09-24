@@ -20,7 +20,7 @@ export function StoreHeader() {
         </div>
         <div className="shrink-0">
           <Link href="/" aria-label="Siftag Pop-Up home">
-            <Image src="/siftag-fabricax.png" alt="Siftag × Fabrica X" width={260} height={40} className="h-auto w-[200px] md:w-[260px]" priority />
+            <Image src="/SiftagLogo.png" alt="Siftag" width={100} height={33} className="h-auto w-[100px] md:w-[120px]" priority />
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end gap-1 md:gap-3">
