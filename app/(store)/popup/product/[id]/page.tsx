@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
-import { Pill } from "@/components/ui";
 import { AddToBag } from "@/components/store/add-to-bag";
 import { getProductDetail } from "@/lib/browse";
 
@@ -80,15 +79,6 @@ export default async function PopupProductPage({ params }: Props) {
             }}
             sizes={sizes}
           />
-
-          {(product.care_notes || product.sizing_notes || product.natural_fibre_pct != null) && (
-            <section className="space-y-2 border-t border-gray-100 pt-5">
-              <h2 className="text-xs uppercase tracking-widest text-gray-500">Composition &amp; care</h2>
-              {product.natural_fibre_pct != null && <Pill>{Number(product.natural_fibre_pct)}% natural fibres</Pill>}
-              {product.care_notes && <p className="text-sm text-gray-600">{product.care_notes}</p>}
-              {product.sizing_notes && <p className="text-sm italic text-gray-500">{product.sizing_notes}</p>}
-            </section>
-          )}
 
           {(brand.story || brand.instagram_handle) && (
             <section className="space-y-2 border-t border-gray-100 pt-5">
