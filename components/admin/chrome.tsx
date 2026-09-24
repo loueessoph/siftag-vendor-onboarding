@@ -11,6 +11,7 @@ const ADMIN_NAV = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/staff", label: "Floor staff" },
   { href: "/admin/till", label: "Checkout" },
+  { href: "/admin/pickup", label: "Order pickup" },
 ];
 
 /** What a floor-staff account can reach: the console and the till. */
@@ -18,6 +19,7 @@ const STAFF_NAV = [
   { href: "/admin/staff", label: "Floor staff" },
   { href: "/admin/items", label: "Item lookup" },
   { href: "/admin/till", label: "Checkout" },
+  { href: "/admin/pickup", label: "Order pickup" },
 ];
 
 export async function AdminShell({
