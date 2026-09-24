@@ -36,7 +36,6 @@ function formatComposition(fibreComposition: string | null): string {
 export function ShopClient({ initialProducts, section }: Props) {
   const [products, setProducts] = useState(initialProducts);
   const [subCategory, setSubCategory] = useState("all");
-  const [search, setSearch] = useState("");
   const [brand, setBrand] = useState("all");
   const [size, setSize] = useState("all");
   const [fabric, setFabric] = useState("all");
@@ -93,10 +92,6 @@ export function ShopClient({ initialProducts, section }: Props) {
     if (size !== "all" && !p.sizes.some((s) => s.size === size)) return false;
     if (fabric !== "all" && !(p.fibreComposition ?? "").toLowerCase().includes(fabric.toLowerCase())) return false;
     if (maxPrice && (p.priceGbp == null || p.priceGbp > Number(maxPrice))) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!p.title.toLowerCase().includes(q) && !p.brandName.toLowerCase().includes(q)) return false;
-    }
     return true;
   });
 
@@ -161,16 +156,6 @@ export function ShopClient({ initialProducts, section }: Props) {
             ))}
           </div>
         )}
-
-        {/* Search */}
-        <div className="pt-3">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search brand or item…"
-            className="w-full border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
-          />
-        </div>
 
         {/* Filter (left) / Sort By (right) */}
         <div className="flex items-center justify-between gap-2 py-3">
