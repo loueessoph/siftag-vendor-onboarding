@@ -21,6 +21,7 @@ import {
   claimUnitsForCheckout,
   getUnitsLineItems,
   markOrderPaid,
+  upsertCustomer,
   UnitsUnavailableError,
 } from "./express";
 import { generateCollectCode } from "./codes";
@@ -176,11 +177,14 @@ export async function openTillOrder(params: {
   const totalGbp = lineItems.reduce((sum, li) => sum + li.priceGbp, 0);
   const collectCode = await newCollectCode();
 
+  // An email at the till means "send me the receipt": keep a customer so the
+  // confirmation can find it once the payment lands.
+  const customerId = params.email ? await upsertCustomer({ email: params.email }) : null;
   const { data: order, error: orderError } = await db
     .from("popup_orders")
     .insert({
       event_id: event.id,
-      customer_id: null,
+      customer_id: customerId,
       order_type: "express",
       source: "till",
       status: "pending_payment",

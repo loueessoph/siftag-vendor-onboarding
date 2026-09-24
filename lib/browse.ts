@@ -11,6 +11,8 @@ import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent, releaseExpiredHolds, type UnitStatus } from "./live-event";
 import { classifyPopupItem, getStylePriority, type PopupCategory, type PopupGender } from "./categorize";
 import { normalizeSizeLabel } from "./sizes";
+import { compareSizes } from "./selection";
+import { bodyFabric, splitNotes } from "./fibre";
 
 export type SizeAvailability = {
   size: string | null;
@@ -23,6 +25,8 @@ export type CatalogueItem = {
   productId: string;
   title: string;
   brandName: string;
+  /** Names the logo at public/brand-logos/<slug>.png, where one exists. */
+  brandSlug: string;
   /** First image is the default; a second (if the product has one) shows on hover. */
   imageUrls: string[];
   priceGbp: number | null;
@@ -44,12 +48,12 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
   await releaseExpiredHolds(event.id);
 
   const { data: brands, error: brandsError } = await fromPopup("popup_brands")
-    .select("id, name")
+    .select("id, name, slug")
     .neq("name", "ZZ Test Brand");
   if (brandsError) throw brandsError;
   const brandIds = (brands ?? []).map((b) => b.id);
   if (brandIds.length === 0) return [];
-  const brandNameById = new Map((brands ?? []).map((b) => [b.id, b.name as string]));
+  const brandById = new Map((brands ?? []).map((b) => [b.id, b as { name: string; slug: string }]));
 
   const [products, allVariants, allEventUnits] = await Promise.all([
     fetchAllRows<{
@@ -62,9 +66,10 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
       natural_fibre_pct: number | null;
       product_type: string | null;
       popup_brand_id: string;
+      care_notes: string | null;
     }>(
       "popup_products",
-      "id, title, handle, image_url, image_urls, fibre_composition, natural_fibre_pct, product_type, popup_brand_id",
+      "id, title, handle, image_url, image_urls, fibre_composition, natural_fibre_pct, product_type, popup_brand_id, care_notes",
       (q) => q.in("popup_brand_id", brandIds).eq("is_excluded", false)
     ),
     // Fetches all variants/units rather than `.in("popup_product_id"/"popup_variant_id",
@@ -165,10 +170,12 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
       item: {
         productId: p.id,
         title: p.title,
-        brandName: brandNameById.get(p.popup_brand_id) ?? "Unknown",
+        brandName: brandById.get(p.popup_brand_id)?.name ?? "Unknown",
+        brandSlug: brandById.get(p.popup_brand_id)?.slug ?? "",
         imageUrls: images,
         priceGbp: prices.length ? Math.min(...prices) : null,
-        fibreComposition: p.fibre_composition,
+        // Typed by the brand, or the body fabric from the statement scraped off their site.
+        fibreComposition: p.fibre_composition?.trim() || bodyFabric(splitNotes(p.care_notes).fabric),
         naturalFibrePct: p.natural_fibre_pct,
         gender,
         category,
@@ -262,7 +269,8 @@ async function getProductCore(productId: string): Promise<ProductDetail | null> 
     siblingsBySizeLabel.set(key, list);
   }
 
-  const sizes = [...siblingsBySizeLabel.entries()].map(([sizeLabel, variantsForSize]) => {
+  // XS, S, M, L, XL rather than the order the scrape happened to store them.
+  const sizes = [...siblingsBySizeLabel.entries()].sort(([a], [b]) => compareSizes(a || null, b || null)).map(([sizeLabel, variantsForSize]) => {
     const unitsForSize = (allUnits ?? []).filter((u) => variantsForSize.some((v) => v.id === u.popup_variant_id));
     const available = unitsForSize.filter((u) => u.status === "available");
     let status: UnitStatus | "sold_out";
@@ -288,7 +296,7 @@ async function getProductCore(productId: string): Promise<ProductDetail | null> 
       id: product.id,
       title: product.title,
       image_urls: images,
-      fibre_composition: product.fibre_composition,
+      fibre_composition: product.fibre_composition?.trim() || bodyFabric(splitNotes(product.care_notes).fabric),
       natural_fibre_pct: product.natural_fibre_pct,
       care_notes: product.care_notes,
       sizing_notes: product.sizing_notes,

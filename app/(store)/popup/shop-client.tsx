@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { sized } from "@/lib/images";
 import type { CatalogueItem } from "@/lib/browse";
 
 interface Props {
   initialProducts: CatalogueItem[];
+  /** From the header's section links (?section=…). */
+  section: Section;
 }
 
 const FABRIC_OPTIONS = ["Cotton", "Silk", "Linen", "Wool", "Cashmere", "Viscose", "Denim"];
@@ -17,7 +22,7 @@ const SORT_OPTIONS: { value: SortValue; label: string }[] = [
   { value: "price-high", label: "Price: High to Low" },
 ];
 
-type Section = "all" | "women" | "men" | "accessories";
+export type Section = "all" | "women" | "men" | "accessories";
 
 const SUB_CATEGORIES: Record<Section, string[]> = {
   all: [],
@@ -30,13 +35,10 @@ function formatComposition(fibreComposition: string | null): string {
   return fibreComposition?.trim() ?? "";
 }
 
-export function ShopClient({ initialProducts }: Props) {
+export function ShopClient({ initialProducts, section }: Props) {
   const [products, setProducts] = useState(initialProducts);
-  const [section, setSection] = useState<Section>("all");
   const [subCategory, setSubCategory] = useState("all");
-  const [search, setSearch] = useState("");
   const [brand, setBrand] = useState("all");
-  const [size, setSize] = useState("all");
   const [fabric, setFabric] = useState("all");
   const [maxPrice, setMaxPrice] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -44,10 +46,10 @@ export function ShopClient({ initialProducts }: Props) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
 
-  function selectSection(next: Section) {
-    setSection(next);
+  // A new section from the header resets the sub-category chips.
+  useEffect(() => {
     setSubCategory("all");
-  }
+  }, [section]);
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -75,10 +77,11 @@ export function ShopClient({ initialProducts }: Props) {
   }, []);
 
   const brands = useMemo(() => [...new Set(products.map((p) => p.brandName))].sort(), [products]);
-  const sizes = useMemo(
-    () => [...new Set(products.flatMap((p) => p.sizes.map((s) => s.size).filter(Boolean)))].sort() as string[],
-    [products]
-  );
+  const brandLogos = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of products) if (p.brandSlug && !map.has(p.brandName)) map.set(p.brandName, p.brandSlug);
+    return map;
+  }, [products]);
 
   const filtered = products.filter((p) => {
     if (section === "accessories") {
@@ -88,13 +91,8 @@ export function ShopClient({ initialProducts }: Props) {
       if (subCategory !== "all" && p.category !== subCategory) return false;
     }
     if (brand !== "all" && p.brandName !== brand) return false;
-    if (size !== "all" && !p.sizes.some((s) => s.size === size)) return false;
     if (fabric !== "all" && !(p.fibreComposition ?? "").toLowerCase().includes(fabric.toLowerCase())) return false;
     if (maxPrice && (p.priceGbp == null || p.priceGbp > Number(maxPrice))) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!p.title.toLowerCase().includes(q) && !p.brandName.toLowerCase().includes(q)) return false;
-    }
     return true;
   });
 
@@ -105,32 +103,20 @@ export function ShopClient({ initialProducts }: Props) {
     filtered.sort((a, b) => (b.priceGbp ?? -Infinity) - (a.priceGbp ?? -Infinity));
   }
 
-  const activeFilterCount = [brand !== "all", size !== "all", fabric !== "all", !!maxPrice].filter(Boolean).length;
+  const activeFilterCount = [brand !== "all", fabric !== "all", !!maxPrice].filter(Boolean).length;
 
   function clearFilters() {
     setBrand("all");
-    setSize("all");
     setFabric("all");
     setMaxPrice("");
   }
 
   return (
     <div>
-      {/* Section tabs: Women / Men / Accessories */}
-      <div className="sticky top-0 bg-white z-10 border-b border-gray-100">
-        <div className="flex gap-1.5 pt-3 overflow-x-auto scrollbar-hide">
-          {(["all", "women", "men", "accessories"] as Section[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => selectSection(s)}
-              className={`shrink-0 px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
-                section === s ? "text-gray-900 font-medium" : "text-gray-400"
-              }`}
-            >
-              {s === "all" ? "All" : s}
-            </button>
-          ))}
-        </div>
+      {/* The brands, as a row of logos. Tap one to see only that brand; tap again for everyone. */}
+      <BrandCarousel brands={brands} logos={brandLogos} selected={brand} onSelect={(b) => setBrand(brand === b ? "all" : b)} />
+
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
         {SUB_CATEGORIES[section].length > 0 && (
           <div className="flex gap-1 pt-1 overflow-x-auto scrollbar-hide">
             <button
@@ -154,16 +140,6 @@ export function ShopClient({ initialProducts }: Props) {
             ))}
           </div>
         )}
-
-        {/* Search */}
-        <div className="pt-3">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search brand or item…"
-            className="w-full border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
-          />
-        </div>
 
         {/* Filter (left) / Sort By (right) */}
         <div className="flex items-center justify-between gap-2 py-3">
@@ -220,40 +196,42 @@ export function ShopClient({ initialProducts }: Props) {
       </div>
 
       {/* Grid — image, brand, title, composition, price only */}
-      <div className="grid grid-cols-4 gap-x-4 gap-y-8 py-6">
+      <div className="grid grid-cols-2 gap-6 py-6 md:grid-cols-3 lg:grid-cols-4">
         {filtered.map((p) => (
           <Link key={p.productId} href={`/popup/product/${p.productId}`} className="group">
-            <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden mb-2">
+            <div className="relative mb-3 aspect-[3/4] overflow-hidden rounded-lg bg-gray-200">
               {p.imageUrls[0] ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.imageUrls[0]}
+                  <Image
+                    src={sized(p.imageUrls[0], 800)}
                     alt={p.title}
-                    className={`h-full w-full object-cover object-top ${
+                    fill
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className={`object-cover object-top ${
                       p.imageUrls[1] ? "transition-opacity duration-300 group-hover:opacity-0" : ""
                     }`}
                   />
                   {/* Second photo (if the product has one) — fades in on hover, like siftag.com's shop grid */}
                   {p.imageUrls[1] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.imageUrls[1]}
+                    <Image
+                      src={sized(p.imageUrls[1], 800)}
                       alt={`${p.title} - alternate view`}
-                      className="absolute inset-0 h-full w-full object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      fill
+                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     />
                   )}
                 </>
               ) : (
-                <div className="flex h-full items-center justify-center text-gray-300 text-[10px]">No photo</div>
+                <div className="flex h-full items-center justify-center text-xs text-gray-400">No photo</div>
               )}
             </div>
-            <p className="text-[9px] tracking-wide text-gray-400 uppercase mb-0.5 truncate">{p.brandName}</p>
-            <h3 className="text-[11px] text-gray-900 mb-0.5 truncate leading-tight">{p.title}</h3>
+            <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{p.brandName}</p>
+            <h3 className="mb-1 truncate text-sm text-gray-900">{p.title}</h3>
             {p.fibreComposition && (
-              <p className="text-[10px] text-gray-500 mb-0.5 truncate">{formatComposition(p.fibreComposition)}</p>
+              <p className="mb-1 truncate text-xs text-gray-500">{formatComposition(p.fibreComposition)}</p>
             )}
-            {p.priceGbp != null && <p className="text-[11px] text-gray-900">£{p.priceGbp.toFixed(2)}</p>}
+            <p className="text-sm text-gray-900">{p.priceGbp != null ? `£${p.priceGbp.toFixed(2)}` : "—"}</p>
           </Link>
         ))}
         {filtered.length === 0 && (
@@ -296,31 +274,6 @@ export function ShopClient({ initialProducts }: Props) {
                       }`}
                     >
                       {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Size</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setSize("all")}
-                    className={`px-3 py-1 text-xs rounded-full border ${
-                      size === "all" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                    }`}
-                  >
-                    All
-                  </button>
-                  {sizes.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSize(size === s ? "all" : s)}
-                      className={`px-3 py-1 text-xs rounded-full border whitespace-nowrap ${
-                        size === s ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {s}
                     </button>
                   ))}
                 </div>
@@ -380,6 +333,78 @@ export function ShopClient({ initialProducts }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A sideways-scrolling strip of the brands' own logos, siftag.com's
+ * "shop by brand" idea for a pop-up with a dozen labels. Logos are the
+ * files scripts/fetch-brand-logos.mjs pulled from each brand's site; a
+ * brand without one shows its name set small.
+ */
+function BrandCarousel({
+  brands,
+  logos,
+  selected,
+  onSelect,
+}: {
+  brands: string[];
+  logos: Map<string, string>;
+  selected: string;
+  onSelect: (brand: string) => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const nudge = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  if (brands.length === 0) return null;
+  return (
+    <div className="relative -mx-4 border-b border-gray-100 md:-mx-6">
+      <button
+        type="button"
+        aria-label="Scroll brands left"
+        onClick={() => nudge(-1)}
+        className="absolute left-0 top-0 z-10 hidden h-full w-14 items-center justify-start bg-gradient-to-r from-white via-white/90 to-transparent pl-3 md:flex"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition-colors hover:border-gray-900 hover:text-gray-900">
+          <ChevronLeft className="h-4 w-4" />
+        </span>
+      </button>
+      <div ref={scroller} className="scrollbar-hide flex items-center gap-8 overflow-x-auto px-4 py-4 md:gap-12 md:px-16">
+        {brands.map((b) => {
+          const slug = logos.get(b);
+          const active = selected === b;
+          const muted = selected !== "all" && !active;
+          return (
+            <button
+              key={b}
+              type="button"
+              onClick={() => onSelect(b)}
+              aria-pressed={active}
+              title={b}
+              className={`flex h-12 shrink-0 items-center border-b-2 pb-1 transition-all ${
+                active ? "border-gray-900 opacity-100" : "border-transparent opacity-80 hover:opacity-100"
+              } ${muted ? "opacity-40" : ""}`}
+            >
+              {slug ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/brand-logos/${slug}.png`} alt={b} className="max-h-8 w-auto max-w-[8rem] object-contain md:max-h-9" />
+              ) : (
+                <span className="whitespace-nowrap text-[11px] font-medium tracking-widest text-gray-700">{b.toUpperCase()}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        aria-label="Scroll brands right"
+        onClick={() => nudge(1)}
+        className="absolute right-0 top-0 z-10 hidden h-full w-14 items-center justify-end bg-gradient-to-l from-white via-white/90 to-transparent pr-3 md:flex"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition-colors hover:border-gray-900 hover:text-gray-900">
+          <ChevronRight className="h-4 w-4" />
+        </span>
+      </button>
     </div>
   );
 }

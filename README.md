@@ -32,7 +32,7 @@ npx vercel@55.0.0 env pull .env.local --scope loueessophs-projects
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side only. Every vendor read and write runs under it |
 | `ADMIN_PASSWORD` | Unlocks `/admin` |
 | `ADMIN_SESSION_SECRET` | Signs the admin cookie |
-| `RESEND_API_KEY` | Not set yet. Without it, emails log instead of sending |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Email is sent as that Google account over SMTP; no DNS to set up. The app password needs 2-step verification on the account. Unset, emails log instead of sending |
 | `NEXT_PUBLIC_SITE_URL` | Used to build the vendor links you paste into emails, and Stripe's return URLs |
 | `STRIPE_SECRET_KEY` | Payments. Test key locally, live key on Vercel |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret for the webhook endpoint below |
@@ -176,7 +176,7 @@ one of three ways, all in `lib/till.ts`:
 |---|---|---|
 | Card reader | `STRIPE_TERMINAL_LOCATION_ID` is set | A `card_present` PaymentIntent is sent to the first online reader at that location; `payment_intent.succeeded` marks the order paid |
 | Card by QR | no reader configured | A Checkout Session shown as a QR; the customer pays on their phone |
-| Cash | always | Staff confirm; the order is marked paid with `payment_method = 'cash'` and no Stripe call |
+| Cash | not offered | The pop-up is card only. `lib/till.ts` keeps a cash path (`payment_method = 'cash'`, no Stripe call) but the till doesn't expose it and the route refuses it |
 
 While a card payment is in flight the till polls `/api/admin/till/status`,
 which also asks Stripe directly, so a sale completes even if the webhook is
@@ -195,9 +195,10 @@ npm run db:tables   # lists every table in the project, ours and the marketplace
 
 ## Not built yet
 
-- **Email doesn't send.** `lib/email.ts` is written and both messages exist,
-  but with no `RESEND_API_KEY` it logs what it would have sent and reports
-  `delivered: false`, so an unsent notice never looks like a sent one.
+- **Email needs the Gmail app password.** `lib/email.ts` sends as the
+  Google account in `GMAIL_USER`; without it, it logs what it would have
+  sent and reports `delivered: false`, so an unsent notice never looks like
+  a sent one.
 - **Reminder schedule** (21 Aug, 28 Aug, 1 Sept, 3 Sept) isn't wired up.
 - **Delivery check-in**, **payout reports**. (The approvals queue is built:
   `/admin/approvals`, decisions stored on `popup_products`.)

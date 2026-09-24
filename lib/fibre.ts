@@ -496,3 +496,15 @@ export const MINIMUM_NATURAL_PCT = 90;
 export function meetsThreshold(pct: number | null): boolean {
   return pct !== null && pct >= MINIMUM_NATURAL_PCT;
 }
+
+/**
+ * When nothing was typed, the itemised statement the scrape read off the
+ * brand's site stands in ("Body: 100% Viscose · Trim: 100% Cotton"). Tags
+ * and product cards have room for one short line, so it's the body fabric
+ * alone, with the "Body:" label dropped.
+ */
+export function bodyFabric(statement: string | null | undefined): string | null {
+  if (!statement) return null;
+  const first = statement.split("·")[0].trim();
+  return first.replace(/^(body|main|shell|outer|fabric)\s*:\s*/i, "").trim() || null;
+}

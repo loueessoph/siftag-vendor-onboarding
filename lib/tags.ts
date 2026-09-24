@@ -20,7 +20,7 @@ import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent } from "./live-event";
 import { money } from "./format";
 import { normalizeSizeLabel } from "./sizes";
-import { splitNotes } from "./fibre";
+import { bodyFabric, splitNotes } from "./fibre";
 import { siteOrigin } from "./stripe";
 
 export type TagUnit = {
@@ -43,17 +43,6 @@ function sizeRank(size: string | null): number {
   if (!size) return SIZE_ORDER.length + 1;
   const i = SIZE_ORDER.indexOf(size.toUpperCase());
   return i === -1 ? SIZE_ORDER.length : i;
-}
-
-/**
- * When nothing was typed, the itemised statement the scrape read off the
- * brand's site stands in ("Body: 100% Viscose · Trim: 100% Cotton"). The tag
- * has room for one short line, so it carries the body fabric alone.
- */
-function bodyFabric(statement: string | null): string | null {
-  if (!statement) return null;
-  const first = statement.split("·")[0].trim();
-  return first.replace(/^(body|main|shell|outer|fabric)\s*:\s*/i, "").trim() || null;
 }
 
 /**

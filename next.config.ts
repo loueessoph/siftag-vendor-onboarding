@@ -16,7 +16,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "cdn.shopify.com" },
       { protocol: "https", hostname: "**.myshopify.com" },
+      { protocol: "https", hostname: "valentinakarellas.com" },
+      { protocol: "https", hostname: "**.supabase.co" },
     ],
+    // Photos don't change once scraped; keep the resized copies for a week.
+    minimumCacheTTL: 60 * 60 * 24 * 7,
   },
 };
 
