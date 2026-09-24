@@ -6,6 +6,8 @@ import type { CatalogueItem } from "@/lib/browse";
 
 interface Props {
   initialProducts: CatalogueItem[];
+  /** From the header's section links (?section=…). */
+  section: Section;
 }
 
 const FABRIC_OPTIONS = ["Cotton", "Silk", "Linen", "Wool", "Cashmere", "Viscose", "Denim"];
@@ -17,22 +19,22 @@ const SORT_OPTIONS: { value: SortValue; label: string }[] = [
   { value: "price-high", label: "Price: High to Low" },
 ];
 
-type Section = "all" | "women" | "men" | "accessories";
+export type Section = "all" | "women" | "men" | "accessories" | "brands";
 
 const SUB_CATEGORIES: Record<Section, string[]> = {
   all: [],
   women: ["Tops", "Bottoms", "Dresses"],
   men: ["Tops", "Bottoms"],
   accessories: [],
+  brands: [],
 };
 
 function formatComposition(fibreComposition: string | null): string {
   return fibreComposition?.trim() ?? "";
 }
 
-export function ShopClient({ initialProducts }: Props) {
+export function ShopClient({ initialProducts, section }: Props) {
   const [products, setProducts] = useState(initialProducts);
-  const [section, setSection] = useState<Section>("all");
   const [subCategory, setSubCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [brand, setBrand] = useState("all");
@@ -44,10 +46,10 @@ export function ShopClient({ initialProducts }: Props) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
 
-  function selectSection(next: Section) {
-    setSection(next);
+  // A new section from the header resets the sub-category chips.
+  useEffect(() => {
     setSubCategory("all");
-  }
+  }, [section]);
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -116,21 +118,26 @@ export function ShopClient({ initialProducts }: Props) {
 
   return (
     <div>
-      {/* Section tabs: Women / Men / Accessories */}
-      <div className="sticky top-0 bg-white z-10 border-b border-gray-100">
-        <div className="flex gap-1.5 pt-3 overflow-x-auto scrollbar-hide">
-          {(["all", "women", "men", "accessories"] as Section[]).map((s) => (
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+        {section === "brands" && (
+          <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pt-3">
             <button
-              key={s}
-              onClick={() => selectSection(s)}
-              className={`shrink-0 px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
-                section === s ? "text-gray-900 font-medium" : "text-gray-400"
-              }`}
+              onClick={() => setBrand("all")}
+              className={`shrink-0 px-2.5 py-1 text-[11px] uppercase tracking-wide ${brand === "all" ? "text-gray-900 underline" : "text-gray-400"}`}
             >
-              {s === "all" ? "All" : s}
+              All brands
             </button>
-          ))}
-        </div>
+            {brands.map((b) => (
+              <button
+                key={b}
+                onClick={() => setBrand(b)}
+                className={`shrink-0 px-2.5 py-1 text-[11px] uppercase tracking-wide ${brand === b ? "text-gray-900 underline" : "text-gray-400"}`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        )}
         {SUB_CATEGORIES[section].length > 0 && (
           <div className="flex gap-1 pt-1 overflow-x-auto scrollbar-hide">
             <button
@@ -220,10 +227,10 @@ export function ShopClient({ initialProducts }: Props) {
       </div>
 
       {/* Grid — image, brand, title, composition, price only */}
-      <div className="grid grid-cols-4 gap-x-4 gap-y-8 py-6">
+      <div className="grid grid-cols-2 gap-6 py-6 md:grid-cols-3 lg:grid-cols-4">
         {filtered.map((p) => (
           <Link key={p.productId} href={`/popup/product/${p.productId}`} className="group">
-            <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden mb-2">
+            <div className="relative mb-3 aspect-[3/4] overflow-hidden rounded-lg bg-gray-200">
               {p.imageUrls[0] ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -245,15 +252,15 @@ export function ShopClient({ initialProducts }: Props) {
                   )}
                 </>
               ) : (
-                <div className="flex h-full items-center justify-center text-gray-300 text-[10px]">No photo</div>
+                <div className="flex h-full items-center justify-center text-xs text-gray-400">No photo</div>
               )}
             </div>
-            <p className="text-[9px] tracking-wide text-gray-400 uppercase mb-0.5 truncate">{p.brandName}</p>
-            <h3 className="text-[11px] text-gray-900 mb-0.5 truncate leading-tight">{p.title}</h3>
+            <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{p.brandName}</p>
+            <h3 className="mb-1 truncate text-sm text-gray-900">{p.title}</h3>
             {p.fibreComposition && (
-              <p className="text-[10px] text-gray-500 mb-0.5 truncate">{formatComposition(p.fibreComposition)}</p>
+              <p className="mb-1 truncate text-xs text-gray-500">{formatComposition(p.fibreComposition)}</p>
             )}
-            {p.priceGbp != null && <p className="text-[11px] text-gray-900">£{p.priceGbp.toFixed(2)}</p>}
+            <p className="text-sm text-gray-900">{p.priceGbp != null ? `£${p.priceGbp.toFixed(2)}` : "—"}</p>
           </Link>
         ))}
         {filtered.length === 0 && (

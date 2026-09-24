@@ -7,6 +7,7 @@
 
 import { fromPopup, supabaseAdmin } from "./supabase/server";
 import { expireCheckoutSession, openCheckoutUrl } from "./stripe";
+import { notifyOrderPaid } from "./email";
 
 export class UnitsUnavailableError extends Error {
   constructor(public unavailableCodes: string[]) {
@@ -244,7 +245,35 @@ export async function markOrderPaid(
     await db.from("popup_orders").update({ status: "pending_payment", paid_at: null }).eq("id", order.id);
     throw err;
   }
+
+  // Confirmation with the items and collect code. Best effort: a failed
+  // email must never fail the webhook, or Stripe would retry a paid order.
+  try {
+    await sendOrderConfirmation(order.id);
+  } catch (err) {
+    console.error("Order confirmation email failed", err, order.id);
+  }
   return true;
+}
+
+async function sendOrderConfirmation(orderId: string): Promise<void> {
+  const { data: order } = await fromPopup("popup_orders")
+    .select("collect_code, subtotal_gbp, source, customer_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order?.customer_id) return;
+  const { data: customer } = await fromPopup("popup_customers").select("email, name").eq("id", order.customer_id).maybeSingle();
+  if (!customer?.email) return;
+  const { data: orderItems } = await fromPopup("popup_order_items").select("popup_unit_id").eq("order_id", orderId);
+  const items = await getUnitsLineItems((orderItems ?? []).map((i) => i.popup_unit_id as string));
+  await notifyOrderPaid({
+    email: customer.email,
+    name: customer.name ?? null,
+    collectCode: order.collect_code,
+    totalGbp: Number(order.subtotal_gbp ?? 0),
+    source: (order.source ?? "express") as "express" | "till",
+    items,
+  });
 }
 
 /**

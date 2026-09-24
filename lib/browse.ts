@@ -11,6 +11,7 @@ import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent, releaseExpiredHolds, type UnitStatus } from "./live-event";
 import { classifyPopupItem, getStylePriority, type PopupCategory, type PopupGender } from "./categorize";
 import { normalizeSizeLabel } from "./sizes";
+import { compareSizes } from "./selection";
 
 export type SizeAvailability = {
   size: string | null;
@@ -262,7 +263,8 @@ async function getProductCore(productId: string): Promise<ProductDetail | null> 
     siblingsBySizeLabel.set(key, list);
   }
 
-  const sizes = [...siblingsBySizeLabel.entries()].map(([sizeLabel, variantsForSize]) => {
+  // XS, S, M, L, XL rather than the order the scrape happened to store them.
+  const sizes = [...siblingsBySizeLabel.entries()].sort(([a], [b]) => compareSizes(a || null, b || null)).map(([sizeLabel, variantsForSize]) => {
     const unitsForSize = (allUnits ?? []).filter((u) => variantsForSize.some((v) => v.id === u.popup_variant_id));
     const available = unitsForSize.filter((u) => u.status === "available");
     let status: UnitStatus | "sold_out";

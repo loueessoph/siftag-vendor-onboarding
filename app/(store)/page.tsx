@@ -9,6 +9,6 @@ import PopupBrowsePage from "./popup/page";
 export const metadata: Metadata = { title: "Siftag Pop-Up", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  return <PopupBrowsePage />;
+export default function HomePage(props: { searchParams: Promise<{ section?: string }> }) {
+  return <PopupBrowsePage searchParams={props.searchParams} />;
 }

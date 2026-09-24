@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         email,
         expiresInMinutes: holdMinutes,
         successUrl: `${origin}/popup/express/confirm/${collectCode}`,
-        cancelUrl: `${origin}/popup/express?codes=${encodeURIComponent(codes)}&cancelled=${collectCode}`,
+        cancelUrl: `${origin}/popup/bag?cancelled=${collectCode}&codes=${encodeURIComponent(codes)}`,
       });
 
       await db

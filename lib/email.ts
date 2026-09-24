@@ -170,3 +170,56 @@ Ready for approval: ${vendorUrl(brand)}`,
 
   return { vendor, admin };
 }
+
+/* Shoppers ----------------------------------------------------------------- */
+
+
+/**
+ * Sent the moment a card payment lands: what they bought and the code to
+ * show at the collection counter. Plain text like everything else here.
+ * Delivery failures are reported, never thrown: the order is paid whether
+ * or not the email goes.
+ */
+export async function notifyOrderPaid(order: {
+  email: string;
+  name: string | null;
+  collectCode: string;
+  totalGbp: number;
+  source: "express" | "till";
+  items: Array<{ productTitle: string; brandName: string; size: string | null; priceGbp: number }>;
+}): Promise<SendResult> {
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002").replace(/\/$/, "");
+  const lines = order.items
+    .map((i) => `  ${i.productTitle} — ${i.brandName}${i.size ? ` (${i.size})` : ""}  £${i.priceGbp.toFixed(2)}`)
+    .join("\n");
+  const first = order.name?.trim().split(" ")[0];
+  const collect =
+    order.source === "express"
+      ? `Show this code, or the QR on the page below, at the Express counter to collect your items:
+
+  ${order.collectCode}
+
+${origin}/popup/express/confirm/${order.collectCode}`
+      : `Your collection code, in case you need to refer to this purchase:
+
+  ${order.collectCode}`;
+
+  return send({
+    to: order.email,
+    subject: `Your Siftag Pop-Up order ${order.collectCode}`,
+    text: `Hi${first ? ` ${first}` : ""},
+
+Thank you, your payment of £${order.totalGbp.toFixed(2)} has gone through.
+
+${lines}
+
+${collect}
+
+Siftag Pop-Up at Fabrica X, 36–40 York Way, King's Cross
+Friday 25 to Sunday 27 September, 9am to 6pm
+
+Payment was taken securely by Stripe; we never see or store your card details.
+Questions? Reply to this email.`,
+    replyTo: ADMIN,
+  });
+}

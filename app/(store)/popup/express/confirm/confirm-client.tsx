@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { OrderSummary } from "@/lib/express";
+import { useCart } from "@/components/store/cart";
 
 interface Props {
   collectCode: string;
@@ -15,7 +16,7 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
   paid: {
     title: "Payment received",
-    body: "Show this code (or QR) at the Express counter to collect.",
+    body: "Show this code (or QR) at the Express counter to collect. We've also emailed it to you.",
   },
   collected: {
     title: "Collected",
@@ -32,6 +33,7 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
 };
 
 export function ConfirmClient({ collectCode }: Props) {
+  const cart = useCart();
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,13 @@ export function ConfirmClient({ collectCode }: Props) {
       QRCode.toDataURL(collectCode, { width: 240, margin: 1 }).then(setQrDataUrl).catch(() => {});
     }
   }, [order, collectCode]);
+
+  // Paid: those garments are theirs now, so they leave the bag.
+  useEffect(() => {
+    if (order && (order.status === "paid" || order.status === "collected")) {
+      cart.removeMany(order.items.map((i) => i.unit_code));
+    }
+  }, [order, cart]);
 
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!order) return <p className="text-sm text-neutral-400">Loading…</p>;
