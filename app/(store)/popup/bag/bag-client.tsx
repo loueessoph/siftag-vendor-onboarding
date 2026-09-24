@@ -132,7 +132,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
       <div className="py-16 text-center">
         <p className="text-sm text-gray-500">Your bag is empty.</p>
         {notice && <p className="mt-2 text-xs text-gray-400">{notice}</p>}
-        <Link href="/" className="mt-6 inline-block rounded-full bg-gray-900 px-6 py-3 text-xs uppercase tracking-widest text-white hover:bg-gray-800">
+        <Link href="/popup" className="mt-6 inline-block rounded-full bg-gray-900 px-6 py-3 text-xs uppercase tracking-widest text-white hover:bg-gray-800">
           Browse the pop-up
         </Link>
       </div>
@@ -206,7 +206,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
           <button type="button" onClick={cart.clear} className="text-gray-400 underline underline-offset-4 hover:text-gray-900">
             Clear bag
           </button>
-          <Link href="/" className="text-gray-400 underline underline-offset-4 hover:text-gray-900">
+          <Link href="/popup" className="text-gray-400 underline underline-offset-4 hover:text-gray-900">
             Keep browsing
           </Link>
         </div>
