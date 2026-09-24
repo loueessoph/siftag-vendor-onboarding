@@ -78,13 +78,14 @@ export default async function PopupTagPage({ params }: Props) {
         <div className="space-y-6">
           <div>
             <p className="text-xs uppercase tracking-widest text-gray-400">{brand.name}</p>
-            <h1 className="mt-1 text-2xl text-gray-900 font-display">{product.title}</h1>
-            <p className="mt-2 text-lg text-gray-900">{price_gbp != null ? `£${Number(price_gbp).toFixed(2)}` : "—"}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              {[product.fibre_composition, unit.colour].filter(Boolean).join(" · ")}
+            <h1 className="mt-2 text-xl uppercase tracking-wide text-gray-900">{product.title}</h1>
+            <p className="mt-3 text-xl text-gray-900">{price_gbp != null ? `£${Number(price_gbp).toFixed(2)}` : "—"}</p>
+            <p className="mt-2 text-xs text-gray-400">
+              {[unit.colour, `Tag ${unit.code}`].filter(Boolean).join(" · ")}
             </p>
-            <p className="mt-1 text-xs text-gray-400">Tag {unit.code}</p>
           </div>
+
+          <FabricComposition composition={product.fibre_composition} />
 
           {unit.status !== "available" && (
             <div className="rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-600">
@@ -104,8 +105,6 @@ export default async function PopupTagPage({ params }: Props) {
             sizes={sizeOptions}
             preselect={unit.status === "available" ? { unitCode: unit.code, size: unit.size } : null}
           />
-
-          <FabricComposition composition={product.fibre_composition} />
 
           {(brand.story || brand.instagram_handle) && (
             <section className="space-y-2 border-t border-gray-100 pt-5">

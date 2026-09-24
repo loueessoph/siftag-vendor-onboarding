@@ -64,10 +64,11 @@ export default async function PopupProductPage({ params }: Props) {
         <div className="space-y-6">
           <div>
             <p className="text-xs uppercase tracking-widest text-gray-400">{brand.name}</p>
-            <h1 className="mt-1 text-2xl text-gray-900 font-display">{product.title}</h1>
-            <p className="mt-2 text-lg text-gray-900">{price_gbp != null ? `£${Number(price_gbp).toFixed(2)}` : "—"}</p>
-            {product.fibre_composition && <p className="mt-1 text-sm text-gray-500">{product.fibre_composition}</p>}
+            <h1 className="mt-2 text-xl uppercase tracking-wide text-gray-900">{product.title}</h1>
+            <p className="mt-3 text-xl text-gray-900">{price_gbp != null ? `£${Number(price_gbp).toFixed(2)}` : "—"}</p>
           </div>
+
+          <FabricComposition composition={product.fibre_composition} />
 
           <AddToBag
             product={{
@@ -80,8 +81,6 @@ export default async function PopupProductPage({ params }: Props) {
             }}
             sizes={sizes}
           />
-
-          <FabricComposition composition={product.fibre_composition} />
 
           {(brand.story || brand.instagram_handle) && (
             <section className="space-y-2 border-t border-gray-100 pt-5">

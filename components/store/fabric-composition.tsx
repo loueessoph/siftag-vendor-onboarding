@@ -65,9 +65,9 @@ export function FabricComposition({ composition }: { composition: string | null 
   const parts = parseComposition(composition);
   if (parts.length === 0) return null;
   return (
-    <section className="border-t border-gray-100 pt-5">
-      <h2 className="text-xs uppercase tracking-widest text-gray-700">Fabric composition</h2>
-      <ul className="mt-4 flex flex-wrap gap-8">
+    <section className="border-b border-gray-100 pb-6">
+      <h2 className="text-sm uppercase tracking-widest text-gray-900">Fabric composition</h2>
+      <ul className="mt-4 flex flex-wrap gap-10">
         {parts.map((p, i) => {
           const icon = iconFor(p);
           return (
@@ -80,7 +80,7 @@ export function FabricComposition({ composition }: { composition: string | null 
               ) : (
                 <GenericFibre className="h-10 w-10 text-gray-500" />
               )}
-              <span className="text-xs uppercase tracking-widest text-gray-700">{p.name}</span>
+              <span className="text-sm uppercase tracking-widest text-gray-600">{p.name}</span>
               {p.pct > 0 && <span className="text-sm text-gray-900">{p.pct}%</span>}
             </li>
           );
