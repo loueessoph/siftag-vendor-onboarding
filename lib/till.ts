@@ -7,6 +7,10 @@
  *             driven server-side (PaymentIntent -> reader.process_payment_intent)
  *   qr        no reader: a Checkout Session shown as a QR the customer pays
  *             on their phone
+ *   app       Tap to Pay in the Stripe Dashboard app on a staff phone. The
+ *             app takes the payment on its own; this side finds it on
+ *             Stripe by amount (and the collect code in its description)
+ *             and marks the order paid
  *   cash      no Stripe at all; staff confirm the money changed hands
  *
  * Card payments are confirmed by the shared webhook, and the till's status
@@ -27,7 +31,7 @@ import {
 import { generateCollectCode } from "./codes";
 import { createCheckoutSession, MIN_CHECKOUT_MINUTES, siteOrigin, stripe } from "./stripe";
 
-export type TillMode = "terminal" | "qr" | "cash";
+export type TillMode = "terminal" | "qr" | "app" | "cash";
 
 export function terminalEnabled(): boolean {
   return Boolean(process.env.STRIPE_TERMINAL_LOCATION_ID);
@@ -164,6 +168,9 @@ export async function openTillOrder(params: {
   await releaseExpiredHolds(event.id);
 
   const mode = params.mode === "terminal" && !terminalEnabled() ? "qr" : params.mode;
+  // A Tap to Pay sale has nothing on Stripe until the app takes the money,
+  // so its order row is the only record. Its "mode" is that very absence:
+  // no session id, no intent id, still pending (see tillOrderStatus).
   const holdMinutes = mode === "cash" ? 5 : Math.max(event.express_hold_minutes, MIN_CHECKOUT_MINUTES);
   const { holdId, unitIds } = await claimUnitsForCheckout({
     eventId: event.id,
@@ -211,6 +218,10 @@ export async function openTillOrder(params: {
     if (mode === "cash") {
       await markOrderPaid(order, { method: "cash", changedBy: params.staffName });
       return { ...base, status: "paid" };
+    }
+
+    if (mode === "app") {
+      return { ...base, status: "pending_payment" };
     }
 
     if (mode === "qr") {
@@ -261,7 +272,7 @@ export async function openTillOrder(params: {
  */
 export async function tillOrderStatus(collectCode: string): Promise<TillOrder | null> {
   const { data: order, error } = await fromPopup("popup_orders")
-    .select("id, event_id, hold_id, status, source, subtotal_gbp, payment_method, stripe_checkout_session_id, stripe_payment_intent_id")
+    .select("id, event_id, hold_id, status, source, subtotal_gbp, payment_method, stripe_checkout_session_id, stripe_payment_intent_id, collect_code, created_at")
     .eq("collect_code", collectCode.toUpperCase())
     .maybeSingle();
   if (error) throw error;
@@ -270,7 +281,14 @@ export async function tillOrderStatus(collectCode: string): Promise<TillOrder | 
   let status = order.status as TillOrder["status"];
   let message: string | undefined;
   let checkoutUrl: string | undefined;
-  const mode: TillMode = order.payment_method === "cash" ? "cash" : order.stripe_payment_intent_id && !order.stripe_checkout_session_id ? "terminal" : "qr";
+  const mode: TillMode =
+    order.payment_method === "cash"
+      ? "cash"
+      : order.stripe_checkout_session_id
+        ? "qr"
+        : order.stripe_payment_intent_id
+          ? "terminal"
+          : "app";
 
   if (status === "pending_payment") {
     try {
@@ -301,6 +319,16 @@ export async function tillOrderStatus(collectCode: string): Promise<TillOrder | 
         } else if (intent.last_payment_error) {
           message = intent.last_payment_error.message ?? "The card was declined. Try again or another card.";
         }
+      } else {
+        const intent = await findAppPaymentFor({
+          collect_code: order.collect_code as string,
+          created_at: order.created_at as string,
+          subtotal_gbp: Number(order.subtotal_gbp ?? 0),
+        });
+        if (intent) {
+          await markOrderPaid(order, { method: "card", paymentIntentId: intent.id });
+          status = "paid";
+        }
       }
     } catch (err) {
       console.error("Till status check against Stripe failed", err, collectCode);
@@ -308,6 +336,82 @@ export async function tillOrderStatus(collectCode: string): Promise<TillOrder | 
   }
 
   return { collectCode: collectCode.toUpperCase(), status, mode, totalGbp: Number(order.subtotal_gbp ?? 0), checkoutUrl, message };
+}
+
+// ---- Tap to Pay in the Stripe app -------------------------------------
+//
+// The Dashboard app creates its own PaymentIntent: card_present, no
+// metadata of ours. Matching is by amount, then by the collect code staff
+// typed into the payment's description; with several same-amount payments
+// and no code, the oldest unclaimed one is taken, which is harmless since
+// they are all real till payments of the same sum. Online payments are
+// never candidates: they carry our order id and are not card_present.
+
+/** How far before the order was opened a Tap to Pay payment may date from. */
+const APP_MATCH_SLACK_S = 120;
+
+type AppOrderKey = { collect_code: string; created_at: string; subtotal_gbp: number };
+
+function isAppCandidate(pi: { status: string; currency: string; metadata?: Record<string, string> | null; payment_method_types: string[] }) {
+  return pi.status === "succeeded" && pi.currency === "gbp" && !pi.metadata?.order_id && pi.payment_method_types.includes("card_present");
+}
+
+async function unclaimed<T extends { id: string }>(intents: T[]): Promise<T[]> {
+  if (intents.length === 0) return intents;
+  const { data: linked } = await fromPopup("popup_orders")
+    .select("stripe_payment_intent_id")
+    .in("stripe_payment_intent_id", intents.map((i) => i.id));
+  const taken = new Set((linked ?? []).map((l) => l.stripe_payment_intent_id as string));
+  return intents.filter((i) => !taken.has(i.id));
+}
+
+/** The till side: a pending Tap to Pay order looks for its payment on Stripe. */
+export async function findAppPaymentFor(order: AppOrderKey) {
+  const amount = Math.round(order.subtotal_gbp * 100);
+  const since = Math.floor(new Date(order.created_at).getTime() / 1000) - APP_MATCH_SLACK_S;
+  const list = await stripe().paymentIntents.list({ created: { gte: since }, limit: 100 });
+  const free = await unclaimed(list.data.filter((pi) => isAppCandidate(pi) && pi.amount === amount));
+  if (free.length === 0) return null;
+  const code = order.collect_code.toUpperCase();
+  const byCode = free.find((pi) => (pi.description ?? "").toUpperCase().includes(code));
+  if (byCode) return byCode;
+  return free.sort((a, b) => a.created - b.created)[0];
+}
+
+/**
+ * The webhook side: a succeeded Tap to Pay payment looks for the pending
+ * till order it settles. Returns whether one was marked paid.
+ */
+export async function claimAppPayment(intent: {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+  created: number;
+  description: string | null;
+  metadata?: Record<string, string> | null;
+  payment_method_types: string[];
+}): Promise<boolean> {
+  if (!isAppCandidate(intent)) return false;
+  if ((await unclaimed([intent])).length === 0) return false;
+  const notBefore = new Date((intent.created - 30 * 60) * 1000).toISOString();
+  const { data: pending, error } = await fromPopup("popup_orders")
+    .select("id, event_id, hold_id, collect_code, subtotal_gbp, created_at")
+    .eq("source", "till")
+    .eq("status", "pending_payment")
+    .is("stripe_checkout_session_id", null)
+    .is("stripe_payment_intent_id", null)
+    .gte("created_at", notBefore)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const sameAmount = (pending ?? []).filter((o) => Math.round(Number(o.subtotal_gbp ?? 0) * 100) === intent.amount);
+  if (sameAmount.length === 0) return false;
+  const desc = (intent.description ?? "").toUpperCase();
+  const order = sameAmount.find((o) => desc.includes((o.collect_code as string).toUpperCase())) ?? sameAmount[0];
+  return markOrderPaid(
+    { id: order.id as string, event_id: order.event_id as string, hold_id: order.hold_id as string | null },
+    { method: "card", paymentIntentId: intent.id }
+  );
 }
 
 /** Tells the reader to try the same PaymentIntent again after a decline. */

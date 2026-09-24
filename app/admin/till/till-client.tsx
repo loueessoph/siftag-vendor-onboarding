@@ -153,7 +153,7 @@ export function TillClient({ terminal, staffName }: Props) {
     return acc;
   }, []);
 
-  async function charge(mode: "terminal" | "qr") {
+  async function charge(mode: "terminal" | "qr" | "app") {
     if (basket.length === 0) return;
     setBusy(true);
     setError(null);
@@ -267,6 +267,30 @@ export function TillClient({ terminal, staffName }: Props) {
             <p className="mt-3 text-sm text-neutral-500">
               Waiting for the card reader{order.readerLabel ? ` (${order.readerLabel})` : ""}. Ask them to tap or insert.
             </p>
+          ) : order.mode === "app" ? (
+            <div className="mt-4 text-left text-sm text-neutral-700">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">In the Stripe app</p>
+              <ol className="mt-2 space-y-2">
+                <li className="flex gap-3">
+                  <span className="font-mono text-neutral-400">1</span>
+                  <span>Open the Stripe app, choose <strong className="font-medium">Tap to Pay</strong>.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-mono text-neutral-400">2</span>
+                  <span>
+                    Enter <strong className="font-medium">{money(order.totalGbp)}</strong> and put{" "}
+                    <strong className="font-mono font-medium tracking-[0.15em]">{order.collectCode}</strong> in the description.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-mono text-neutral-400">3</span>
+                  <span>Let the customer tap their card or phone.</span>
+                </li>
+              </ol>
+              <p className="mt-4 text-center text-xs text-neutral-500">
+                Waiting for the payment. This page updates itself within a few seconds of it landing.
+              </p>
+            </div>
           ) : (
             <p className="mt-3 text-sm text-neutral-500">Ask them to scan this with their phone camera and pay.</p>
           )}
@@ -416,11 +440,18 @@ export function TillClient({ terminal, staffName }: Props) {
           className="w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-black"
         />
         <button
-          onClick={() => charge(terminal ? "terminal" : "qr")}
+          onClick={() => charge("app")}
           disabled={busy || basket.length === 0}
           className="w-full rounded-full bg-black py-4 text-sm uppercase tracking-wide text-white disabled:opacity-40"
         >
-          {terminal ? `Charge ${money(total)} on card reader` : `Charge ${money(total)} by card (QR)`}
+          {`Charge ${money(total)} · Tap to Pay`}
+        </button>
+        <button
+          onClick={() => charge(terminal ? "terminal" : "qr")}
+          disabled={busy || basket.length === 0}
+          className="w-full rounded-full border border-black py-4 text-sm uppercase tracking-wide text-black disabled:opacity-40"
+        >
+          {terminal ? `Charge ${money(total)} on card reader` : `Charge ${money(total)} · customer scans QR`}
         </button>
         {basket.length > 0 && (
           <button
