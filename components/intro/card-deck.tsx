@@ -10,7 +10,6 @@ export type DeckCard = {
   alt: string;
   /** Where a tap on the card goes; the brand cards open the shop narrowed to that brand. */
   href?: string;
-  label?: string;
 };
 
 /**
@@ -105,11 +104,6 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
             </Link>
           ) : (
             <Image src={top.src} alt={top.alt} fill priority sizes="(max-width: 640px) 90vw, 420px" className="object-cover" draggable={false} />
-          )}
-          {top.label && (
-            <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-[11px] uppercase tracking-widest text-gray-900">
-              {top.label}
-            </span>
           )}
         </div>
       </div>

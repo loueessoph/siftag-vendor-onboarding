@@ -35,7 +35,6 @@ export default function IntroPage() {
     src: `/intro/cards/${c.file}.jpg`,
     alt: `${c.brand} uses no polyester`,
     href: `/popup?brand=${encodeURIComponent(c.brand)}`,
-    label: c.brand,
   }));
 
   return (
