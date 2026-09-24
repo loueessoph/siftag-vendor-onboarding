@@ -7,7 +7,7 @@ import { homeFor } from "@/lib/admin-auth";
 const ADMIN_NAV = [
   { href: "/admin", label: "Brands" },
   { href: "/admin/approvals", label: "Approvals" },
-  { href: "/admin/items", label: "Items" },
+  { href: "/admin/items", label: "Item lookup" },
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/staff", label: "Floor staff" },
   { href: "/admin/till", label: "Checkout" },
@@ -16,7 +16,7 @@ const ADMIN_NAV = [
 /** What a floor-staff account can reach: the console and the till. */
 const STAFF_NAV = [
   { href: "/admin/staff", label: "Floor staff" },
-  { href: "/admin/items", label: "Items" },
+  { href: "/admin/items", label: "Item lookup" },
   { href: "/admin/till", label: "Checkout" },
 ];
 

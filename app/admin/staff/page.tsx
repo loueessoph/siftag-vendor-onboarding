@@ -58,7 +58,7 @@ export default async function StaffConsole({
             <Muted>
               Find the piece on the{" "}
               <Link href="/admin/items" className="underline underline-offset-4 hover:text-neutral-900">
-                Items
+                Item lookup
               </Link>{" "}
               page, by name, brand or the code under its QR, and tap the code to mark it held, in the fitting room, sold or back on the rail.
             </Muted>

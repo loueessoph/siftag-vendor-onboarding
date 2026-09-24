@@ -4,7 +4,7 @@ import { listAdminItems } from "@/lib/admin-items";
 import { ItemsClient } from "./items-client";
 
 export const metadata: Metadata = {
-  title: "Items: Siftag pop-up admin",
+  title: "Item lookup: Siftag pop-up admin",
   robots: { index: false, follow: false },
 };
 
