@@ -13,6 +13,7 @@
  * poll also asks Stripe directly, so a missed webhook never strands a sale.
  */
 
+import { randomBytes } from "node:crypto";
 import { fromPopup, supabaseAdmin } from "./supabase/server";
 import { getActiveEvent, releaseExpiredHolds } from "./live-event";
 import {
@@ -69,6 +70,57 @@ export async function lookupUnit(input: string): Promise<TillLine | null> {
     size: line.size,
     priceGbp: line.priceGbp,
   };
+}
+
+/**
+ * "One more of these": the next spare tag for the same product, size and
+ * colour, skipping any already in the basket. When every tag on record is
+ * taken, the stock count was simply short, so a new unit is created rather
+ * than turning the sale away; the new code is printed on nothing, which is
+ * fine, since the garment is leaving the building.
+ */
+export async function anotherUnit(unitCode: string, excludeCodes: string[]): Promise<(TillLine & { created: boolean }) | null> {
+  const db = supabaseAdmin();
+  const { data: unit, error } = await fromPopup("popup_units")
+    .select("id, event_id, popup_variant_id")
+    .eq("unit_code", unitCodeFrom(unitCode))
+    .maybeSingle();
+  if (error) throw error;
+  if (!unit) return null;
+
+  const exclude = new Set(excludeCodes.map((c) => c.toUpperCase()));
+  const { data: siblings, error: sibError } = await fromPopup("popup_units")
+    .select("id, unit_code")
+    .eq("popup_variant_id", unit.popup_variant_id)
+    .eq("event_id", unit.event_id)
+    .eq("status", "available")
+    .order("unit_code");
+  if (sibError) throw sibError;
+  let spare = (siblings ?? []).find((u) => !exclude.has(u.unit_code as string)) ?? null;
+  let created = false;
+
+  if (!spare) {
+    let code = "";
+    for (let attempt = 0; attempt < 5 && !code; attempt++) {
+      const candidate = randomBytes(4).toString("hex").toUpperCase();
+      const { data: clash } = await fromPopup("popup_units").select("id").eq("unit_code", candidate).maybeSingle();
+      if (!clash) code = candidate;
+    }
+    if (!code) throw new Error("Could not allocate a tag code.");
+    const { data: made, error: makeError } = await db
+      .from("popup_units")
+      .insert({ event_id: unit.event_id, popup_variant_id: unit.popup_variant_id, unit_code: code, status: "available" })
+      .select("id, unit_code")
+      .single();
+    if (makeError) throw makeError;
+    spare = made;
+    created = true;
+  }
+
+  const [line] = await getUnitsLineItems([spare.id as string]);
+  return line
+    ? { unitCode: line.unitCode, status: "available", productTitle: line.productTitle, brandName: line.brandName, size: line.size, priceGbp: line.priceGbp, created }
+    : null;
 }
 
 export type TillOrder = {
