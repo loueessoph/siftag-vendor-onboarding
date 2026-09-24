@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
   // Vercel's bundler only ships files it can see imported, so name them.
   outputFileTracingIncludes: {
     "/api/admin/tags": ["./public/fonts/**/*", "./public/brand-logos/**/*"],
-    "/": ["./public/intro/**/*"],
   },
   images: {
     // Vendor catalogue images are hot-linked from the brands' own Shopify CDNs

@@ -9,8 +9,8 @@ per-brand payout reports within 14 days after.
 
 Live at **https://popup.siftag.com** (noindexed). The root is an intro page
 (what Siftag is, how buying here works); the shop is `/popup` and the vendor
-information page is `/vendors`. Posters for the intro live in `public/intro`,
-one picked at random per visit.
+information page is `/vendors`. The intro's swipeable deck is the poster
+plus one card per brand from `public/intro/cards`, listed in `app/page.tsx`.
 
 ## Running it
 

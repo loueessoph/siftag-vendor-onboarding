@@ -12,6 +12,8 @@ interface Props {
   initialProducts: CatalogueItem[];
   /** From the header's section links (?section=…). */
   section: Section;
+  /** A brand to start narrowed to, from a card on the intro page. */
+  initialBrand?: string;
 }
 
 type SortValue = "recommended" | "price-low" | "price-high";
@@ -34,10 +36,10 @@ function formatComposition(fibreComposition: string | null): string {
   return fibreComposition?.trim() ?? "";
 }
 
-export function ShopClient({ initialProducts, section }: Props) {
+export function ShopClient({ initialProducts, section, initialBrand = "all" }: Props) {
   const [products, setProducts] = useState(initialProducts);
   const [subCategory, setSubCategory] = useState("all");
-  const [brand, setBrand] = useState("all");
+  const [brand, setBrand] = useState(initialBrand);
   const [sort, setSort] = useState<SortValue>("recommended");
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);

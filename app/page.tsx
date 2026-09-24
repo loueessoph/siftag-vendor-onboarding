@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { CardDeck, type DeckCard } from "@/components/intro/card-deck";
 
 export const metadata: Metadata = {
   title: "Siftag Pop-Up at Fabrica X",
@@ -11,34 +10,42 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const dynamic = "force-dynamic"; // a different poster each load
-
-/** Any image dropped into public/intro is a candidate; one is picked per visit. */
-async function randomPoster(): Promise<string> {
-  try {
-    const files = (await fs.readdir(path.join(process.cwd(), "public", "intro"))).filter((f) => /\.(jpe?g|png|webp)$/i.test(f));
-    if (files.length === 0) return "/fabrica-x.jpg";
-    return `/intro/${files[Math.floor(Math.random() * files.length)]}`;
-  } catch {
-    return "/fabrica-x.jpg";
-  }
-}
+/** The vendor cards (public/intro/cards) and which brand each opens in the shop. */
+const BRAND_CARDS: Array<{ file: string; brand: string }> = [
+  { file: "aefen", brand: "Aefen London" },
+  { file: "house", brand: "House of Ador" },
+  { file: "hyli", brand: "Hyli" },
+  { file: "india-grace", brand: "India Grace London" },
+  { file: "julie", brand: "Julie May Lingerie" },
+  { file: "laine", brand: "Laine Hill" },
+  { file: "margen", brand: "Margen Atelier" },
+  { file: "plain", brand: "Plain and Simple" },
+  { file: "sariva", brand: "Sariva Rozen" },
+  { file: "valentina", brand: "Valentina Karellas" },
+  { file: "yusun", brand: "Yusun The Label" },
+];
 
 /**
  * The front door. What Siftag is, what this pop-up is, and the one thing a
  * shopper has to understand before they buy here rather than in the room:
- * no trying on, no returns.
+ * no trying on, no returns. The deck of cards is the line-up.
  */
-export default async function IntroPage() {
-  const poster = await randomPoster();
+export default function IntroPage() {
+  const cards: DeckCard[] = BRAND_CARDS.map((c) => ({
+    src: `/intro/cards/${c.file}.jpg`,
+    alt: `${c.brand} uses no polyester`,
+    href: `/popup?brand=${encodeURIComponent(c.brand)}`,
+    label: c.brand,
+  }));
+
   return (
     <main className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-2">
-        <div className="relative aspect-square w-full lg:aspect-auto lg:min-h-screen">
-          <Image src={poster} alt="Siftag at Fabrica X: The Natural Fibre Edit, 25 to 27 September" fill priority sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:min-h-screen lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-16">
+        <div className="order-2 lg:order-1">
+          <CardDeck cards={cards} />
         </div>
 
-        <div className="flex flex-col justify-center px-6 py-10 md:px-12 lg:py-16">
+        <div className="order-1 lg:order-2">
           <Image src="/SiftagLogo.png" alt="Siftag" width={100} height={33} className="h-auto w-[90px]" />
           <p className="mt-8 text-[11px] uppercase tracking-[0.25em] text-gray-500">The Natural Fibre Edit</p>
           <h1 className="mt-3 font-display text-3xl leading-tight md:text-4xl">
