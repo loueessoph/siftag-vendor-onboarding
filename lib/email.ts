@@ -41,12 +41,15 @@ export async function send(message: Message): Promise<SendResult> {
     return { delivered: false, reason: "No email provider configured" };
   }
 
-  // Gmail sends as the authenticated account; EMAIL_FROM only lends its display name.
+  // Logs in as GMAIL_USER but sends as EMAIL_FROM, which works when that
+  // address is set up as a "Send mail as" alias in the account's Gmail
+  // settings; otherwise Google quietly rewrites the From to the account.
   const displayName = FROM.match(/^(.*?)\s*</)?.[1]?.trim() || "Siftag Pop-Up";
+  const from = /<[^>]+@[^>]+>/.test(FROM) ? FROM : `${displayName} <${user}>`;
   try {
     const transport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
     await transport.sendMail({
-      from: `${displayName} <${user}>`,
+      from,
       to: message.to,
       subject: message.subject,
       text: message.text,
