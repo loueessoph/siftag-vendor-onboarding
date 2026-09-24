@@ -46,7 +46,7 @@ export default function IntroPage() {
         style={{ ["--deck-w" as string]: "min(360px, 78vw, 36dvh)" }}
       >
         <Link href="/popup" aria-label="Enter the Siftag pop-up shop">
-          <Image src="/SiftagLogo.png" alt="Siftag" width={160} height={53} className="h-auto w-[110px] md:w-[140px]" priority />
+          <Image src="/siftag-fabricax.png" alt="Siftag × Fabrica X" width={701} height={110} className="h-auto w-[220px] md:w-[280px]" priority />
         </Link>
         <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-gray-500 md:text-[11px]">The Natural Fibre Edit · 25–27 September</p>
 

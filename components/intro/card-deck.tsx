@@ -45,26 +45,37 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
   const busyUntil = useRef(0);
   const isBusy = () => Date.now() < busyUntil.current;
 
-  /** Next: the top card flicks off in `dir` and the one beneath rises. */
+  /**
+   * Next: the top card flicks off in `dir` and the one beneath becomes the
+   * top at once, so another swipe can start while the old card is still on
+   * its way out. If a card is still flying when the next swipe comes, it is
+   * simply dropped to the back early.
+   */
+  const flyTimer = useRef<number | null>(null);
   const advance = useCallback(
-    (dir: -1 | 1, from = 0) => {
-      if (isBusy() || count < 2) return;
-      busyUntil.current = Date.now() + 520;
+    (dir: -1 | 1) => {
+      if (count < 2 || entering) return;
+      if (flyTimer.current) {
+        window.clearTimeout(flyTimer.current);
+        flyTimer.current = null;
+      }
       const card = index;
+      setReturning(null);
       setFlying({ card, dx: dir * 620 });
-      window.setTimeout(() => {
+      setIndex((i) => (i + 1) % count);
+      flyTimer.current = window.setTimeout(() => {
+        flyTimer.current = null;
         setFlying(null);
         setReturning(card);
-        setIndex((i) => (i + 1) % count);
-        window.setTimeout(() => setReturning(null), 300);
-      }, from === 0 ? 220 : 200);
+        window.setTimeout(() => setReturning((r) => (r === card ? null : r)), 300);
+      }, 220);
     },
-    [count, index]
+    [count, index, entering]
   );
 
   /** Back: the previous card comes in from the left and lands on top. */
   const retreat = useCallback(() => {
-    if (isBusy() || count < 2) return;
+    if (isBusy() || count < 2 || flying) return;
     busyUntil.current = Date.now() + 440;
     const prev = (index - 1 + count) % count;
     setEntering({ card: prev, settled: false });
@@ -73,7 +84,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
       setEntering({ card: prev, settled: true });
       window.setTimeout(() => setEntering(null), 400);
     }, 30);
-  }, [count, index]);
+  }, [count, index, flying]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,7 +107,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
     }
   }
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (isBusy() || count < 2) return;
+    if (isBusy() || count < 2) return; // only the "back" entrance holds the deck for a moment
     gesture.current = { x: e.clientX, y: e.clientY, t: Date.now(), dx: 0, moved: false, id: e.pointerId };
     const top = els.current.get(index);
     const next = els.current.get((index + 1) % count);
@@ -124,7 +135,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
       // Keep going the way the finger was moving.
       if (top) top.style.transform = "";
       if (next) next.style.transform = "";
-      advance(g.dx > 0 ? 1 : -1, g.dx);
+      advance(g.dx > 0 ? 1 : -1);
       return;
     }
     // Let go early: spring back, and a clean tap opens the card's page.
@@ -171,7 +182,7 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
               opacity = pos > 3 ? 0 : 1;
               transition = isReturning ? "none" : `transform 380ms ${EASE}, opacity 300ms ${EASE}`;
             }
-            const interactive = onTop;
+            const interactive = onTop && !isFlying;
             return (
               <div
                 key={card.src}
