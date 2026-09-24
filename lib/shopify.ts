@@ -22,6 +22,8 @@ export type ScrapedProduct = {
   title: string;
   handle: string;
   imageUrl: string | null;
+  /** Every photo the site shows, first one first. The storefront hover-swaps to the second. */
+  imageUrls: string[];
   productType: string | null;
   /** Set where the item can't be sold at a physical pop-up. */
   exclusionReason: string | null;
@@ -222,6 +224,7 @@ export async function fetchShopifyCatalogue(
         title: product.title,
         handle: product.handle,
         imageUrl: product.images[0]?.src ?? null,
+        imageUrls: product.images.map((image) => image.src).filter(Boolean),
         productType: product.product_type?.trim() || null,
         exclusionReason: exclusionReasonFor(product),
         fibreComposition: extractComposition(product.body_html ?? ""),

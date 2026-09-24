@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin/chrome";
 import { CopyLink } from "@/components/admin/copy-link";
-import { Button, Muted, Pill } from "@/components/ui";
+import { Button, ButtonLink, Muted, Pill } from "@/components/ui";
 import { catalogueStats, getBrand, vendorPath } from "@/lib/brands";
 import { scrapeBrandAction } from "@/app/admin/actions";
 import { BrandEditor } from "@/components/admin/brand-editor";
@@ -212,6 +212,21 @@ export default async function BrandDetail({
 
         <aside className="space-y-8">
           <CopyLink url={url} />
+
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+              Tags
+            </p>
+            <div className="mt-4">
+              <ButtonLink href={`/api/admin/tags?brandId=${brand.id}`} prefetch={false}>
+                Print tags
+              </ButtonLink>
+              <p className="mt-3 text-xs leading-relaxed text-neutral-500">
+                A4 PDF, one tag per garment with its QR and code. Only ticked,
+                approved units with stock declared.
+              </p>
+            </div>
+          </div>
 
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">

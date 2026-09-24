@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface Props {
-  initialCode: string | null;
+  initialCodes: string[];
+  /** Set when the shopper came back from Stripe without paying: that order gets released so the items can be bought again. */
+  cancelledCode: string | null;
 }
 
-export function ExpressCheckoutClient({ initialCode }: Props) {
-  const router = useRouter();
-  const [codes, setCodes] = useState<string[]>(initialCode ? [initialCode] : []);
+export function ExpressCheckoutClient({ initialCodes, cancelledCode }: Props) {
+  const [codes, setCodes] = useState<string[]>(initialCodes);
   const [codeInput, setCodeInput] = useState("");
   const [contact, setContact] = useState({ email: "", phone: "" });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!cancelledCode) return;
+    fetch("/api/popup/express/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectCode: cancelledCode }),
+    })
+      .catch(() => {})
+      .finally(() => setNotice("Payment cancelled. Your items are back in the basket below."));
+    window.history.replaceState(null, "", "/popup/express");
+  }, [cancelledCode]);
 
   function addCode() {
     const code = codeInput.trim().toUpperCase();
@@ -54,7 +67,8 @@ export function ExpressCheckoutClient({ initialCode }: Props) {
         setSubmitting(false);
         return;
       }
-      router.push(`/popup/express/confirm/${json.collectCode}`);
+      // Straight to Stripe's payment page; it returns to the confirm page when paid.
+      window.location.assign(json.checkoutUrl);
     } catch {
       setError("Network error. Try again.");
       setSubmitting(false);
@@ -112,6 +126,7 @@ export function ExpressCheckoutClient({ initialCode }: Props) {
         />
       </div>
 
+      {notice && <p className="text-sm text-neutral-600">{notice}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
@@ -119,7 +134,7 @@ export function ExpressCheckoutClient({ initialCode }: Props) {
         disabled={submitting}
         className="w-full rounded-full bg-black text-white py-3 text-sm tracking-wide uppercase hover:bg-neutral-800 transition-colors disabled:opacity-50"
       >
-        {submitting ? "Preparing checkout…" : "Continue to payment"}
+        {submitting ? "Opening payment…" : "Continue to payment"}
       </button>
       <p className="text-xs text-center text-neutral-400">
         No try-on before purchase — this is a pay-now, collect-at-counter order.

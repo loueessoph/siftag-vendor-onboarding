@@ -1,67 +1,152 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fromPopup, supabaseAdmin } from "@/lib/supabase/server";
-import { verifyShopifyWebhook } from "@/lib/shopify-client";
-import { finalizePaidOrder } from "@/lib/express";
+import type Stripe from "stripe";
+import { fromPopup } from "@/lib/supabase/server";
+import { constructWebhookEvent, paymentIntentId } from "@/lib/stripe";
+import { cancelPendingOrder, markOrderPaid } from "@/lib/express";
 
 /**
- * Shopify webhook target: Admin > Settings > Notifications > Webhooks,
- * topic "Draft order update", format JSON. A draft order flips to status
- * "completed" the moment the buyer pays through its invoice URL — that's
- * the signal that turns held units into sold ones.
+ * The one Stripe webhook, for every order this app opens: express
+ * checkouts and till sales alike. Register it in the Stripe dashboard (or
+ * `stripe listen` locally, see README) for:
+ *
+ *   checkout.session.completed          card paid: units go to 'sold'
+ *   checkout.session.async_payment_succeeded   same, for delayed methods
+ *   checkout.session.async_payment_failed      release the hold
+ *   checkout.session.expired           nobody paid: release the hold
+ *   payment_intent.succeeded           till card reader: units go to 'sold'
+ *   payment_intent.canceled            till sale abandoned: release the hold
+ *
+ * Stripe retries until it gets a 2xx and may deliver an event more than
+ * once, so every branch claims the order with a conditional update first;
+ * a repeat lands on an order that is no longer pending and is skipped.
  */
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  const hmac = request.headers.get("x-shopify-hmac-sha256");
 
-  if (!verifyShopifyWebhook(rawBody, hmac)) {
-    console.error("Shopify webhook signature verification failed");
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
-  let payload: { id: number; status: string; order_id: number | null };
+  let event: Stripe.Event;
   try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    event = constructWebhookEvent(rawBody, request.headers.get("stripe-signature"));
+  } catch (err) {
+    console.error("Stripe webhook signature verification failed", (err as Error).message);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (payload.status !== "completed") {
-    return NextResponse.json({ ok: true, skipped: "not completed yet" });
+  switch (event.type) {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object;
+      // A completed session with payment still pending (bank debit etc.)
+      // gets its own async_payment_succeeded later; nothing to do yet.
+      if (session.payment_status !== "paid") {
+        return NextResponse.json({ ok: true, skipped: "payment not settled yet" });
+      }
+      return markPaid(session);
+    }
+    case "checkout.session.expired":
+    case "checkout.session.async_payment_failed":
+      return release(event.data.object, event.type);
+    case "payment_intent.succeeded": {
+      // Till sales on the card reader have no Checkout Session; express
+      // payments also raise this, but their order is already paid by then.
+      const intent = event.data.object;
+      return markPaidByIntent(intent.id, intent.metadata?.order_id);
+    }
+    case "payment_intent.canceled": {
+      const intent = event.data.object;
+      return releaseByIntent(intent.id, intent.metadata?.order_id, event.type);
+    }
+    default:
+      return NextResponse.json({ ok: true, skipped: event.type });
   }
+}
 
-  const db = supabaseAdmin();
-  const draftOrderId = String(payload.id);
+type OrderRow = { id: string; event_id: string; hold_id: string | null; status: string };
+const ORDER_COLUMNS = "id, event_id, hold_id, status";
 
-  const { data: order, error } = await fromPopup("popup_orders")
-    .select("id, event_id, hold_id, status")
-    .eq("shopify_draft_order_id", draftOrderId)
-    .maybeSingle();
-  if (error) {
-    console.error("Order lookup failed for webhook", error, draftOrderId);
+async function findOrderBy(column: "stripe_checkout_session_id" | "stripe_payment_intent_id", value: string, fallbackOrderId?: string | null) {
+  const { data, error } = await fromPopup("popup_orders").select(ORDER_COLUMNS).eq(column, value).maybeSingle();
+  if (error) throw error;
+  if (data) return data as OrderRow;
+  // The Stripe id is written after the object is created; if that write
+  // failed, the order id Stripe echoes back in metadata still finds it.
+  if (!fallbackOrderId) return null;
+  const { data: byId, error: byIdError } = await fromPopup("popup_orders").select(ORDER_COLUMNS).eq("id", fallbackOrderId).maybeSingle();
+  if (byIdError) throw byIdError;
+  return byId as OrderRow | null;
+}
+
+async function markPaid(session: Stripe.Checkout.Session) {
+  let order: OrderRow | null;
+  try {
+    order = await findOrderBy("stripe_checkout_session_id", session.id, session.metadata?.order_id);
+  } catch (err) {
+    console.error("Order lookup failed for Stripe webhook", err, session.id);
     return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
   }
   if (!order) {
-    console.error("Webhook for unknown draft order", draftOrderId);
-    return NextResponse.json({ ok: true, skipped: "unknown draft order" });
+    console.error("Stripe webhook for unknown session", session.id);
+    return NextResponse.json({ ok: true, skipped: "unknown session" });
   }
-  if (order.status !== "pending_payment") {
-    return NextResponse.json({ ok: true, skipped: "already processed" });
-  }
-
   try {
-    await finalizePaidOrder(order);
-    await db
-      .from("popup_orders")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        shopify_order_id: payload.order_id ? String(payload.order_id) : null,
-      })
-      .eq("id", order.id);
+    const done = await markOrderPaid(order, { method: "card", checkoutSessionId: session.id, paymentIntentId: paymentIntentId(session) });
+    return NextResponse.json({ ok: true, skipped: done ? undefined : "already processed" });
   } catch (err) {
     console.error("Failed to finalize paid order", err, order.id);
     return NextResponse.json({ error: "Failed to finalize order" }, { status: 500 });
   }
+}
 
-  return NextResponse.json({ ok: true });
+async function markPaidByIntent(intentId: string, orderId?: string | null) {
+  let order: OrderRow | null;
+  try {
+    order = await findOrderBy("stripe_payment_intent_id", intentId, orderId);
+  } catch (err) {
+    console.error("Order lookup failed for Stripe webhook", err, intentId);
+    return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+  }
+  if (!order) return NextResponse.json({ ok: true, skipped: "no order for intent" });
+  try {
+    const done = await markOrderPaid(order, { method: "card", paymentIntentId: intentId });
+    return NextResponse.json({ ok: true, skipped: done ? undefined : "already processed" });
+  } catch (err) {
+    console.error("Failed to finalize paid order", err, order.id);
+    return NextResponse.json({ error: "Failed to finalize order" }, { status: 500 });
+  }
+}
+
+async function release(session: Stripe.Checkout.Session, reason: string) {
+  let order: OrderRow | null;
+  try {
+    order = await findOrderBy("stripe_checkout_session_id", session.id, session.metadata?.order_id);
+  } catch (err) {
+    console.error("Order lookup failed for Stripe webhook", err, session.id);
+    return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+  }
+  if (!order) return NextResponse.json({ ok: true, skipped: "unknown session" });
+  try {
+    // Session already gone on Stripe's side: no need to expire it again.
+    const released = await cancelPendingOrder({ id: order.id, hold_id: order.hold_id, reason });
+    return NextResponse.json({ ok: true, released, reason });
+  } catch (err) {
+    console.error("Failed to release order after", reason, err, order.id);
+    return NextResponse.json({ error: "Failed to release order" }, { status: 500 });
+  }
+}
+
+async function releaseByIntent(intentId: string, orderId: string | null | undefined, reason: string) {
+  let order: OrderRow | null;
+  try {
+    order = await findOrderBy("stripe_payment_intent_id", intentId, orderId);
+  } catch (err) {
+    console.error("Order lookup failed for Stripe webhook", err, intentId);
+    return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+  }
+  if (!order) return NextResponse.json({ ok: true, skipped: "no order for intent" });
+  try {
+    const released = await cancelPendingOrder({ id: order.id, hold_id: order.hold_id, reason });
+    return NextResponse.json({ ok: true, released, reason });
+  } catch (err) {
+    console.error("Failed to release order after", reason, err, order.id);
+    return NextResponse.json({ error: "Failed to release order" }, { status: 500 });
+  }
 }

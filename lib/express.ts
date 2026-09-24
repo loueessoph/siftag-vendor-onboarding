@@ -6,6 +6,7 @@
  */
 
 import { fromPopup, supabaseAdmin } from "./supabase/server";
+import { expireCheckoutSession, openCheckoutUrl } from "./stripe";
 
 export class UnitsUnavailableError extends Error {
   constructor(public unavailableCodes: string[]) {
@@ -24,6 +25,9 @@ export async function claimUnitsForCheckout(params: {
   eventId: string;
   unitCodes: string[];
   holdMinutes: number;
+  /** Written to popup_unit_events.changed_by: "customer" for the express flow, the staff name at the till. */
+  changedBy?: string;
+  note?: string;
 }) {
   const db = supabaseAdmin();
   const codes = params.unitCodes.map((c) => c.toUpperCase());
@@ -75,8 +79,8 @@ export async function claimUnitsForCheckout(params: {
       event_id: params.eventId,
       from_status: "available",
       to_status: "held",
-      changed_by: "customer",
-      note: "express checkout pending payment",
+      changed_by: params.changedBy ?? "customer",
+      note: params.note ?? "express checkout pending payment",
     });
   }
 
@@ -105,7 +109,7 @@ export async function upsertCustomer(params: { phone?: string; email?: string; n
   return created.id as string;
 }
 
-/** Line-item detail for the units in a hold, used both for the Shopify draft order and the order summary. */
+/** Line-item detail for the units in a hold, used both for the Stripe Checkout Session and the order summary. */
 export async function getUnitsLineItems(unitIds: string[]) {
   const { data: units, error: unitsError } = await fromPopup("popup_units")
     .select("id, unit_code, popup_variant_id")
@@ -152,11 +156,15 @@ export async function getUnitsLineItems(unitIds: string[]) {
 }
 
 /**
- * Called from the Shopify webhook once a draft order is paid: converts the
- * held units to 'sold' and writes the settlement-facing order_items. Safe
- * to call twice for the same order (no-ops if items already exist).
+ * Called from the Stripe webhook once a Checkout Session is paid (and by
+ * the till for cash): converts the held units to 'sold' and writes the
+ * settlement-facing order_items. Safe to call twice for the same order
+ * (no-ops if items already exist).
  */
-export async function finalizePaidOrder(order: { id: string; event_id: string; hold_id: string | null }) {
+export async function finalizePaidOrder(
+  order: { id: string; event_id: string; hold_id: string | null },
+  by: { changedBy?: string; note?: string } = {}
+) {
   const db = supabaseAdmin();
   const { data: existingItems } = await fromPopup("popup_order_items").select("id").eq("order_id", order.id).limit(1);
   if (existingItems && existingItems.length > 0) return; // already finalized
@@ -180,8 +188,8 @@ export async function finalizePaidOrder(order: { id: string; event_id: string; h
       event_id: order.event_id,
       from_status: "held",
       to_status: "sold",
-      changed_by: "system",
-      note: "express payment confirmed",
+      changed_by: by.changedBy ?? "system",
+      note: by.note ?? "payment confirmed",
     });
     await db.from("popup_order_items").insert({
       order_id: order.id,
@@ -194,12 +202,122 @@ export async function finalizePaidOrder(order: { id: string; event_id: string; h
   await db.from("popup_holds").update({ status: "converted", released_at: new Date().toISOString() }).eq("id", order.hold_id);
 }
 
+export type PaidVia =
+  | { method: "card"; checkoutSessionId?: string | null; paymentIntentId?: string | null }
+  | { method: "cash"; changedBy: string };
+
+/**
+ * The one place an order becomes paid: the Stripe webhook, the till's
+ * reconciliation poll and the cash button all come through here. Claims the
+ * order with a conditional update so two callers can't both finalise it,
+ * then sells the units. Returns false when the order was no longer pending.
+ * If selling the units throws, the order is put back so the caller (or
+ * Stripe's retry) can try again.
+ */
+export async function markOrderPaid(
+  order: { id: string; event_id: string; hold_id: string | null },
+  via: PaidVia
+): Promise<boolean> {
+  const db = supabaseAdmin();
+  const stripeIds =
+    via.method === "card"
+      ? {
+          ...(via.checkoutSessionId ? { stripe_checkout_session_id: via.checkoutSessionId } : {}),
+          ...(via.paymentIntentId ? { stripe_payment_intent_id: via.paymentIntentId } : {}),
+        }
+      : {};
+  const { data: claimed, error } = await db
+    .from("popup_orders")
+    .update({ status: "paid", paid_at: new Date().toISOString(), payment_method: via.method, ...stripeIds })
+    .eq("id", order.id)
+    .eq("status", "pending_payment")
+    .select("id");
+  if (error) throw error;
+  if (!claimed || claimed.length === 0) return false;
+
+  try {
+    await finalizePaidOrder(
+      order,
+      via.method === "cash" ? { changedBy: via.changedBy, note: "paid in cash at the till" } : {}
+    );
+  } catch (err) {
+    await db.from("popup_orders").update({ status: "pending_payment", paid_at: null }).eq("id", order.id);
+    throw err;
+  }
+  return true;
+}
+
+/**
+ * Undoes a pending order: units go back on the floor, the hold is released,
+ * the order is cancelled and any open Stripe session is expired so it can't
+ * be paid afterwards. Used when the payment page fails to open, when the
+ * shopper backs out of it, and when Stripe reports the session expired.
+ * A no-op for an order that is no longer pending.
+ */
+export async function cancelPendingOrder(order: {
+  id: string;
+  hold_id: string | null;
+  stripe_checkout_session_id?: string | null;
+  /** Written to the unit events, e.g. "payment page expired". */
+  reason?: string;
+}): Promise<boolean> {
+  const db = supabaseAdmin();
+  const nowIso = new Date().toISOString();
+
+  // Atomic: only one caller gets to cancel, so the webhook and the shopper's
+  // own cancel can't both release the same units.
+  const { data: cancelled, error } = await db
+    .from("popup_orders")
+    .update({ status: "cancelled" })
+    .eq("id", order.id)
+    .eq("status", "pending_payment")
+    .select("id");
+  if (error) throw error;
+  if (!cancelled || cancelled.length === 0) return false;
+
+  if (order.hold_id) {
+    const { data: units } = await fromPopup("popup_units")
+      .select("id, event_id")
+      .eq("hold_id", order.hold_id)
+      .eq("status", "held");
+    const unitIds = (units ?? []).map((u) => u.id as string);
+    if (unitIds.length > 0) {
+      await db
+        .from("popup_units")
+        .update({ status: "available", hold_id: null, updated_at: nowIso })
+        .in("id", unitIds);
+      // Keep the audit trail symmetrical with the 'held' event the claim wrote.
+      await db.from("popup_unit_events").insert(
+        (units ?? []).map((u) => ({
+          popup_unit_id: u.id,
+          event_id: u.event_id,
+          from_status: "held",
+          to_status: "available",
+          changed_by: "system",
+          note: order.reason ?? "order cancelled",
+        }))
+      );
+    }
+    await db
+      .from("popup_holds")
+      .update({ status: "released", released_at: nowIso })
+      .eq("id", order.hold_id)
+      .eq("status", "active");
+  }
+
+  if (order.stripe_checkout_session_id) await expireCheckoutSession(order.stripe_checkout_session_id);
+  return true;
+}
+
 export type OrderSummary = {
   collect_code: string;
   order_type: "express" | "reserve_collect";
   status: "pending_payment" | "paid" | "collected" | "uncollected" | "cancelled";
+  source: "express" | "till";
+  payment_method: "card" | "cash" | null;
   subtotal_gbp: number | null;
-  shopify_invoice_url: string | null;
+  /** Stripe's hosted payment page, only while the order is still awaiting payment. */
+  checkout_url: string | null;
   items: Array<{ unit_code: string; product_title: string; brand_name: string; size: string | null; price_gbp: number }>;
   created_at: string;
   paid_at: string | null;
@@ -250,7 +368,12 @@ export async function getOrderSummary(collectCode: string): Promise<OrderSummary
     // page's `.toFixed(2)` calls. Same normalization getUnitsLineItems
     // already does for price_gbp.
     subtotal_gbp: order.subtotal_gbp === null ? null : Number(order.subtotal_gbp),
-    shopify_invoice_url: order.shopify_invoice_url,
+    source: order.source ?? "express",
+    payment_method: order.payment_method ?? null,
+    checkout_url:
+      order.status === "pending_payment" && order.stripe_checkout_session_id
+        ? await openCheckoutUrl(order.stripe_checkout_session_id)
+        : null,
     items,
     created_at: order.created_at,
     paid_at: order.paid_at,

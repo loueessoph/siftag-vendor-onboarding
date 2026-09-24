@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getActiveEvent, releaseExpiredHolds } from "@/lib/live-event";
-import { claimUnitsForCheckout, getUnitsLineItems, upsertCustomer, UnitsUnavailableError } from "@/lib/express";
+import {
+  cancelPendingOrder,
+  claimUnitsForCheckout,
+  getUnitsLineItems,
+  upsertCustomer,
+  UnitsUnavailableError,
+} from "@/lib/express";
 import { generateCollectCode } from "@/lib/codes";
-import { createDraftOrder } from "@/lib/shopify-client";
+import { createCheckoutSession, MIN_CHECKOUT_MINUTES, siteOrigin } from "@/lib/stripe";
 
 const MAX_ITEMS = 10;
 
 /**
  * Express buyer: pay online now, collect at the counter, no fitting room.
- * Claims the chosen units (all-or-nothing), opens a Shopify draft order for
- * payment, and returns the hosted invoice URL + a short collect code.
+ * Claims the chosen units (all-or-nothing), opens a Stripe Checkout Session
+ * for payment, and returns its URL + a short collect code. The Stripe
+ * webhook turns the held units into sold ones once the payment lands.
  */
 export async function POST(request: NextRequest) {
   let body: { unitCodes?: unknown; email?: unknown; phone?: unknown; name?: unknown };
@@ -29,8 +36,8 @@ export async function POST(request: NextRequest) {
   if (unitCodes.length > MAX_ITEMS) {
     return NextResponse.json({ error: `Max ${MAX_ITEMS} items per order` }, { status: 400 });
   }
-  const email = typeof body.email === "string" ? body.email : undefined;
-  const phone = typeof body.phone === "string" ? body.phone : undefined;
+  const email = typeof body.email === "string" && body.email.trim() ? body.email.trim() : undefined;
+  const phone = typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : undefined;
   if (!email && !phone) {
     return NextResponse.json({ error: "Enter an email or phone number" }, { status: 400 });
   }
@@ -41,10 +48,13 @@ export async function POST(request: NextRequest) {
     const event = await getActiveEvent();
     await releaseExpiredHolds(event.id);
 
+    // The hold must outlive the Stripe session (30 minutes minimum), or a
+    // shopper could pay for a garment that has already gone back on the floor.
+    const holdMinutes = Math.max(event.express_hold_minutes, MIN_CHECKOUT_MINUTES);
     const { holdId, unitIds } = await claimUnitsForCheckout({
       eventId: event.id,
       unitCodes,
-      holdMinutes: event.express_hold_minutes,
+      holdMinutes,
     });
 
     const customerId = await upsertCustomer({ email, phone, name: body.name as string | undefined });
@@ -64,6 +74,7 @@ export async function POST(request: NextRequest) {
         event_id: event.id,
         customer_id: customerId,
         order_type: "express",
+        source: "express",
         status: "pending_payment",
         collect_code: collectCode,
         hold_id: holdId,
@@ -74,31 +85,30 @@ export async function POST(request: NextRequest) {
     if (orderError) throw orderError;
 
     try {
-      const draftOrder = await createDraftOrder({
-        lineItems: lineItems.map((li) => ({
-          title: `${li.productTitle} — ${li.brandName}${li.size ? ` (${li.size})` : ""}`,
-          price: li.priceGbp.toFixed(2),
-          quantity: 1,
-          sku: li.unitCode,
-        })),
+      const origin = siteOrigin();
+      const codes = lineItems.map((li) => li.unitCode).join(",");
+      const session = await createCheckoutSession({
+        orderId: order.id,
+        collectCode,
+        source: "express",
+        lineItems,
         email,
-        phone,
-        note: `Siftag Pop-Up express order ${collectCode}`,
+        expiresInMinutes: holdMinutes,
+        successUrl: `${origin}/popup/express/confirm/${collectCode}`,
+        cancelUrl: `${origin}/popup/express?codes=${encodeURIComponent(codes)}&cancelled=${collectCode}`,
       });
 
       await db
         .from("popup_orders")
-        .update({ shopify_draft_order_id: draftOrder.id, shopify_invoice_url: draftOrder.invoiceUrl })
+        .update({ stripe_checkout_session_id: session.id })
         .eq("id", order.id);
 
-      return NextResponse.json({ collectCode, invoiceUrl: draftOrder.invoiceUrl, subtotalGbp });
-    } catch (shopifyError) {
+      return NextResponse.json({ collectCode, checkoutUrl: session.url, subtotalGbp });
+    } catch (stripeError) {
       // Payment provider unavailable — release everything we claimed so the
       // items go straight back on the floor instead of sitting held.
-      await db.from("popup_units").update({ status: "available", hold_id: null }).in("id", unitIds);
-      await db.from("popup_holds").update({ status: "released", released_at: new Date().toISOString() }).eq("id", holdId);
-      await db.from("popup_orders").update({ status: "cancelled" }).eq("id", order.id);
-      console.error("Shopify draft order failed; released hold", shopifyError, collectCode);
+      await cancelPendingOrder({ id: order.id, hold_id: holdId });
+      console.error("Stripe Checkout Session failed; released hold", stripeError, collectCode);
       return NextResponse.json({ error: "Payments are temporarily unavailable. Please try again." }, { status: 503 });
     }
   } catch (err) {

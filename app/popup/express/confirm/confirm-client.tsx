@@ -79,9 +79,9 @@ export function ConfirmClient({ collectCode }: Props) {
         <p className="text-sm text-neutral-500 mt-1">{copy.body}</p>
       </div>
 
-      {order.status === "pending_payment" && order.shopify_invoice_url && (
+      {order.status === "pending_payment" && order.checkout_url && (
         <a
-          href={order.shopify_invoice_url}
+          href={order.checkout_url}
           className="block w-full text-center rounded-full bg-black text-white py-3 text-sm tracking-wide uppercase hover:bg-neutral-800 transition-colors"
         >
           Pay now — £{order.subtotal_gbp?.toFixed(2)}

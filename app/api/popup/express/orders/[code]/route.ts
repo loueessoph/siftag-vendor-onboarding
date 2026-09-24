@@ -4,7 +4,7 @@ import { getOrderSummary } from "@/lib/express";
 /**
  * Public (by collect code, not guessable): the confirmation/collect screen
  * polls this to flip from "pending payment" to "paid — show this at the
- * counter" once the Shopify webhook lands.
+ * counter" once the Stripe webhook lands.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

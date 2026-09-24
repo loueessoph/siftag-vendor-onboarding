@@ -6,7 +6,7 @@
  * counting stock; pulling fresh prices must not touch a word of it. So the
  * scrape owns exactly the columns it produced, and nothing else:
  *
- *   scrape owns   title, handle, image_url, product_type, exclusion,
+ *   scrape owns   title, handle, image_url, image_urls, product_type, exclusion,
  *                 vendor_sku, barcode, size, colour, online_price
  *   vendor owns   fibre_composition, natural_fibre_pct, care_notes,
  *                 sizing_notes, selected, popup_price, quantity_declared
@@ -108,6 +108,7 @@ export async function ingestCatalogue(
       title: product.title,
       handle: product.handle,
       image_url: product.imageUrl,
+      image_urls: product.imageUrls,
       product_type: product.productType,
       is_excluded: product.exclusionReason !== null,
       exclusion_reason: product.exclusionReason,

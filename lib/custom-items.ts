@@ -45,6 +45,7 @@ export async function addCustomItem(
       title: input.title.trim(),
       handle: id,
       image_url: input.imageUrl,
+      image_urls: input.imageUrl ? [input.imageUrl] : [],
       product_type: null,
       is_excluded: false,
       exclusion_reason: null,

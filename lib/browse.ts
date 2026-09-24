@@ -6,48 +6,11 @@
  * nothing here depends on that repo still existing.
  */
 
-import { fromPopup, supabaseAdmin } from "./supabase/server";
+import { fromPopup } from "./supabase/server";
+import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent, releaseExpiredHolds, type UnitStatus } from "./live-event";
 import { classifyPopupItem, getStylePriority, type PopupCategory, type PopupGender } from "./categorize";
 import { normalizeSizeLabel } from "./sizes";
-
-/**
- * PostgREST caps an unbounded select at a server-configured max (commonly
- * 1000 rows) — with 3000+ popup_variants onboarded, a plain `.select()`
- * silently returns only the first 1000. Pages in parallel: gets an exact
- * count first, then fires every page at once, so wall-clock is one
- * round-trip's worth of latency, not one per page.
- */
-async function fetchAllRows<T>(
-  table: string,
-  select: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  modify?: (query: any) => any
-): Promise<T[]> {
-  const PAGE = 1000;
-  const db = supabaseAdmin();
-
-  let countQuery = db.from(table).select("*", { count: "exact", head: true });
-  if (modify) countQuery = modify(countQuery);
-  const { count, error: countError } = await countQuery;
-  if (countError) throw countError;
-  const total = count ?? 0;
-  if (total === 0) return [];
-
-  const pageStarts: number[] = [];
-  for (let from = 0; from < total; from += PAGE) pageStarts.push(from);
-
-  const pages = await Promise.all(
-    pageStarts.map(async (from) => {
-      let query = db.from(table).select(select);
-      if (modify) query = modify(query);
-      const { data, error } = await query.range(from, from + PAGE - 1);
-      if (error) throw error;
-      return (data ?? []) as T[];
-    })
-  );
-  return pages.flat();
-}
 
 export type SizeAvailability = {
   size: string | null;
@@ -191,9 +154,8 @@ export async function getBrowseCatalogue(): Promise<CatalogueItem[]> {
       .map((v) => Number(v.popup_price ?? v.online_price ?? NaN))
       .filter((n) => !Number.isNaN(n));
     // Second image (if the product has one) drives the browse grid's
-    // hover-swap. Every real product only has one photo today (image_urls
-    // is never populated by vendor onboarding, only the single image_url
-    // field) — this is ready for whenever a product actually has a second one.
+    // hover-swap. The scrape fills image_urls with every photo on the
+    // brand's site; image_url is the fallback for rows that predate that.
     const images = p.image_urls?.length ? p.image_urls : p.image_url ? [p.image_url] : [];
     const { gender, category } = classifyPopupItem(p.title, p.product_type, p.handle);
     const stylePriority = getStylePriority(p.title, p.product_type);

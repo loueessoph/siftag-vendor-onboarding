@@ -8,11 +8,15 @@
     "db:tables": "node --env-file=.env.local scripts/list-tables.mjs"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@supabase/supabase-js": "^2.45.0",
+    "jsqr": "^1.4.0",
     "next": "latest",
+    "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@types/node": "^20",

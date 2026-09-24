@@ -41,6 +41,9 @@ export default async function AdminHome() {
       }
       action={
         <div className="flex flex-wrap gap-3">
+          <ButtonLink href="/api/admin/tags" prefetch={false}>
+            Print all tags
+          </ButtonLink>
           <ButtonLink href="/admin/approvals">Approvals</ButtonLink>
           <ButtonLink href="/admin/brands/new" variant="primary">
             Add a brand

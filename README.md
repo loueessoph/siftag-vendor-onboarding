@@ -7,7 +7,8 @@ One job: get an approved product list from every brand by **14 September**, turn
 it into a till import before the event, and turn the till's sales export into
 per-brand payout reports within 14 days after.
 
-Live at **https://siftag-vendor-onboarding.vercel.app** (noindexed).
+Live at **https://popup.siftag.com** (noindexed). The root is the shoppers'
+storefront; the vendor information page is at `/vendors`.
 
 ## Running it
 
@@ -32,7 +33,11 @@ npx vercel@55.0.0 env pull .env.local --scope loueessophs-projects
 | `ADMIN_PASSWORD` | Unlocks `/admin` |
 | `ADMIN_SESSION_SECRET` | Signs the admin cookie |
 | `RESEND_API_KEY` | Not set yet. Without it, emails log instead of sending |
-| `NEXT_PUBLIC_SITE_URL` | Used to build the vendor links you paste into emails |
+| `NEXT_PUBLIC_SITE_URL` | Used to build the vendor links you paste into emails, and Stripe's return URLs |
+| `STRIPE_SECRET_KEY` | Payments. Test key locally, live key on Vercel |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for the webhook endpoint below |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Browser-side key, only used by the till's card reader |
+| `STRIPE_TERMINAL_LOCATION_ID` | Optional. A Stripe Terminal location turns on card-reader payments at the till |
 
 ## How it fits together
 
@@ -126,6 +131,59 @@ regenerated cellulosics (viscose, modal, lyocell, bamboo) as *not* natural, and
 returns null rather than guessing at a fibre it doesn't recognise. The selector
 blocks inline; submit re-checks server-side on the same rules.
 
+## Payments
+
+Everything is paid through Stripe Checkout: the express flow (a shopper
+pays on their phone, collects at the counter) and the till. `lib/stripe.ts`
+opens a hosted Checkout Session per order, one line item per garment, and
+Stripe emails the receipt. Nothing is charged by this app directly. The
+vendors' Shopify stores (`lib/shopify.ts`) are only ever read for their
+catalogues and play no part in payment.
+
+An order is created `pending_payment` with its units on an express hold
+that outlasts the session, and only the webhook moves it on:
+
+| Stripe event | What happens |
+|---|---|
+| `checkout.session.completed` (paid) | Units to `sold`, order to `paid`, order items written for settlement |
+| `checkout.session.async_payment_succeeded` | Same, for payment methods that settle later |
+| `checkout.session.expired`, `checkout.session.async_payment_failed` | Hold released, units back to `available`, order `cancelled` |
+| `payment_intent.succeeded`, `payment_intent.canceled` | The same two outcomes for till sales on the card reader |
+
+**Webhook setup.** In the Stripe dashboard, Developers > Webhooks, add an
+endpoint for `https://<site>/api/popup/express/webhook` subscribed to the
+six events above, and put its signing secret in `STRIPE_WEBHOOK_SECRET`.
+Deliveries are idempotent: a repeated event finds the order already moved on
+and is skipped.
+
+**Locally**, forward events with the Stripe CLI and use the secret it prints:
+
+```bash
+stripe listen --forward-to localhost:3002/api/popup/express/webhook
+stripe trigger checkout.session.completed   # or pay with card 4242 4242 4242 4242
+```
+
+A shopper who backs out of the payment page lands on `/popup/express` with
+their codes, which calls `/api/popup/express/cancel` so the items are
+released immediately rather than when the session expires half an hour on.
+
+**The till** is `/admin/till`, open to admin and staff sessions alike and
+laid out for a phone or tablet. Staff scan tags into a basket (a keyboard
+scanner types the tag URL; the code under the QR works too) and charge it
+one of three ways, all in `lib/till.ts`:
+
+| Mode | When | How it settles |
+|---|---|---|
+| Card reader | `STRIPE_TERMINAL_LOCATION_ID` is set | A `card_present` PaymentIntent is sent to the first online reader at that location; `payment_intent.succeeded` marks the order paid |
+| Card by QR | no reader configured | A Checkout Session shown as a QR; the customer pays on their phone |
+| Cash | always | Staff confirm; the order is marked paid with `payment_method = 'cash'` and no Stripe call |
+
+While a card payment is in flight the till polls `/api/admin/till/status`,
+which also asks Stripe directly, so a sale completes even if the webhook is
+late. The webhook endpoint therefore needs `payment_intent.succeeded` and
+`payment_intent.canceled` on top of the Checkout events above. Till orders
+carry `source = 'till'` on `popup_orders`.
+
 ## Migrations
 
 SQL files in `supabase/migrations/`, run by hand in the Supabase SQL editor,
@@ -156,3 +214,21 @@ one black button. `/design-check` renders every primitive on one page.
 Two copy rules: **no em dashes** (colon or full stop instead), and the tone is
 informative rather than salesy. The reservation site does the selling; by the
 time a brand is here they've already paid.
+
+## Staff logins
+
+Retail assistants sign in at `/admin/login` with their own password and get a
+`staff` session that `proxy.ts` confines to the floor console (`/admin/staff`)
+and the till (`/admin/till`). Everything else under `/admin` still needs the
+shared `ADMIN_PASSWORD`.
+
+Staff passwords are `STAFF_PASSWORDS`, a comma-separated list of
+`Name:password` pairs. The name is what shows in the header and what goes in
+`popup_unit_events.changed_by` when they tap a status:
+
+```
+STAFF_PASSWORDS=Riha:riha_siftag,Ronette:ronette_siftag,Harriet:harriet_siftag
+```
+
+Set it locally in `.env.local` and on Vercel. To lock someone out or change a
+password, edit the list and redeploy.
