@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { sized } from "@/lib/images";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import { ChevronLeft } from "lucide-react";
 import { AddToBag } from "@/components/store/add-to-bag";
 import { FabricComposition } from "@/components/store/fabric-composition";
@@ -68,7 +69,7 @@ export default async function PopupTagPage({ params }: Props) {
           {product.image_urls[0] ? (
             <Image src={sized(product.image_urls[0], 1200)} alt={product.title} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover object-top" />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">No photo yet</div>
+            <PhotoPlaceholder />
           )}
           <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm">
             <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[unit.status]}`} />

@@ -3,9 +3,9 @@ import { Geist, Gilda_Display } from "next/font/google";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Siftag Pop-Up at Fabrica X: Vendor Hub",
+  title: "Siftag Pop-Up at Fabrica X",
   description:
-    "Everything you need for the Siftag pop-up at Fabrica X, King's Cross, 25 to 27 September 2026.",
+    "Shop natural-fibre pieces from independent brands at the Siftag pop-up, Fabrica X, King's Cross, 25 to 27 September 2026. Pay online, collect at the counter.",
   robots: { index: false, follow: false },
 };
 

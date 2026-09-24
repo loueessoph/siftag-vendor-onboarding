@@ -2,7 +2,12 @@ import { getBrowseCatalogue } from "@/lib/browse";
 import { ShopClient, type Section } from "./shop-client";
 
 export const dynamic = "force-dynamic"; // live status, never statically cached
-export const metadata = { title: "Siftag Pop-Up", robots: { index: false, follow: false } };
+export const metadata = {
+  title: "Siftag Pop-Up at Fabrica X",
+  description:
+    "Shop natural-fibre pieces from independent brands at the Siftag pop-up, Fabrica X, King's Cross, 25 to 27 September 2026. Pay online, collect at the counter.",
+  robots: { index: false, follow: false },
+};
 
 const SECTIONS: Section[] = ["all", "women", "men", "accessories"];
 

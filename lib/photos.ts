@@ -5,6 +5,7 @@
  * same column the scrape fills, so nothing downstream knows the difference.
  */
 
+import sharp from "sharp";
 import { supabaseAdmin } from "./supabase/server";
 
 export const PHOTO_BUCKET = "popup-photos";
@@ -15,6 +16,7 @@ const ALLOWED = new Map([
   ["image/webp", "webp"],
   ["image/gif", "gif"],
   ["image/heic", "heic"],
+  ["image/heif", "heic"],
 ]);
 
 async function ensureBucket() {
@@ -54,21 +56,41 @@ export async function attachPhoto(
   if (!product) throw new Error("Product not found for this brand.");
 
   await ensureBucket();
-  const ext = ALLOWED.get(file.type) ?? "jpg";
+  const { bytes, contentType, ext } = await webReady(Buffer.from(await file.arrayBuffer()), file.type);
   const path = `${brandId}/${productId}-${Date.now()}.${ext}`;
   const { error: uploadError } = await db.storage
     .from(PHOTO_BUCKET)
-    .upload(path, Buffer.from(await file.arrayBuffer()), {
-      contentType: file.type,
-      upsert: false,
-    });
+    .upload(path, bytes, { contentType, upsert: false });
   if (uploadError) throw uploadError;
 
   const url = db.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
   const { error: updateError } = await db
     .from("popup_products")
-    .update({ image_url: url })
+    .update({ image_url: url, image_urls: [url] })
     .eq("id", productId);
   if (updateError) throw updateError;
   return url;
+}
+
+/**
+ * Whatever a phone hands over, stored as something every browser shows:
+ * HEIC (the iPhone default) is decoded and re-encoded as JPEG, and any
+ * photo is rotated the right way up and capped at 2000px on the long side,
+ * which is plenty for the storefront and a fraction of the upload size.
+ * GIFs pass through untouched so an animation survives.
+ */
+export async function webReady(
+  input: Buffer,
+  mime: string
+): Promise<{ bytes: Buffer; contentType: string; ext: string }> {
+  if (mime === "image/gif") return { bytes: input, contentType: mime, ext: "gif" };
+  let source: Buffer = input;
+  if (mime === "image/heic" || mime === "image/heif") {
+    const { default: convert } = await import("heic-convert");
+    source = Buffer.from(await convert({ buffer: new Uint8Array(input), format: "JPEG", quality: 0.92 }));
+  }
+  const keepPng = mime === "image/png";
+  const image = sharp(source).rotate().resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true });
+  const bytes = keepPng ? await image.png().toBuffer() : await image.jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+  return keepPng ? { bytes, contentType: "image/png", ext: "png" } : { bytes, contentType: "image/jpeg", ext: "jpg" };
 }

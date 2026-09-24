@@ -222,6 +222,8 @@ export type ProductDetail = {
     status: UnitStatus | "sold_out";
     available_count: number;
     buy_unit_code: string | null;
+    /** Every garment of this size that can be bought right now, so a shopper can take more than one. */
+    available_unit_codes: string[];
   }>;
 };
 
@@ -283,6 +285,7 @@ async function getProductCore(productId: string): Promise<ProductDetail | null> 
       status,
       available_count: available.length,
       buy_unit_code: available[0]?.unit_code ?? null,
+      available_unit_codes: available.map((u) => u.unit_code as string),
     };
   });
 
@@ -362,5 +365,69 @@ export async function getTagDetail(unitCode: string): Promise<TagDetail | null> 
     ...core,
     // The scanned unit's own price takes precedence over the product-wide minimum.
     price_gbp: variant.popup_price ?? variant.online_price ?? core.price_gbp,
+  };
+}
+
+export type SpareUnit = {
+  unitCode: string;
+  productId: string;
+  title: string;
+  brandName: string;
+  size: string | null;
+  colour: string | null;
+  priceGbp: number;
+  imageUrl: string | null;
+};
+
+/**
+ * "One more of these" for the bag: another available garment of the same
+ * product and size as `unitCode`, skipping any the shopper already has.
+ * Null when every one is taken. Unlike the till, never invents stock.
+ */
+export async function findSpareUnit(unitCode: string, excludeCodes: string[]): Promise<SpareUnit | null> {
+  const { data: unit, error } = await fromPopup("popup_units")
+    .select("event_id, popup_variant_id")
+    .eq("unit_code", unitCode.toUpperCase())
+    .maybeSingle();
+  if (error) throw error;
+  if (!unit) return null;
+  await releaseExpiredHolds(unit.event_id);
+
+  const { data: variant } = await fromPopup("popup_variants")
+    .select("id, size, colour, popup_price, online_price, popup_product_id")
+    .eq("id", unit.popup_variant_id)
+    .single();
+  if (!variant) return null;
+  // Same product and the same size label, across colour-split variant rows.
+  const wanted = normalizeSizeLabel(variant.size);
+  const { data: siblings } = await fromPopup("popup_variants")
+    .select("id, size, colour, popup_price, online_price")
+    .eq("popup_product_id", variant.popup_product_id);
+  const variantIds = (siblings ?? []).filter((v) => normalizeSizeLabel(v.size) === wanted).map((v) => v.id);
+
+  const exclude = new Set(excludeCodes.map((c) => c.toUpperCase()));
+  const { data: units } = await fromPopup("popup_units")
+    .select("unit_code, popup_variant_id")
+    .in("popup_variant_id", variantIds.length ? variantIds : ["00000000-0000-0000-0000-000000000000"])
+    .eq("status", "available")
+    .order("unit_code");
+  const spare = (units ?? []).find((u) => !exclude.has(u.unit_code as string));
+  if (!spare) return null;
+
+  const { data: product } = await fromPopup("popup_products")
+    .select("id, title, image_url, image_urls, popup_brand_id")
+    .eq("id", variant.popup_product_id)
+    .single();
+  const { data: brand } = await fromPopup("popup_brands").select("name").eq("id", product?.popup_brand_id).single();
+  const priced = (siblings ?? []).find((v) => v.id === spare.popup_variant_id) ?? variant;
+  return {
+    unitCode: spare.unit_code as string,
+    productId: product?.id as string,
+    title: product?.title as string,
+    brandName: (brand?.name as string) ?? "",
+    size: wanted,
+    colour: priced.colour ?? variant.colour ?? null,
+    priceGbp: Number(priced.popup_price ?? priced.online_price ?? 0),
+    imageUrl: product?.image_urls?.[0] ?? product?.image_url ?? null,
   };
 }
