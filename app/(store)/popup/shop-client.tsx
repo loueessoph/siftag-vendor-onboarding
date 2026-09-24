@@ -37,7 +37,6 @@ export function ShopClient({ initialProducts, section }: Props) {
   const [products, setProducts] = useState(initialProducts);
   const [subCategory, setSubCategory] = useState("all");
   const [brand, setBrand] = useState("all");
-  const [size, setSize] = useState("all");
   const [fabric, setFabric] = useState("all");
   const [maxPrice, setMaxPrice] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -81,10 +80,6 @@ export function ShopClient({ initialProducts, section }: Props) {
     for (const p of products) if (p.brandSlug && !map.has(p.brandName)) map.set(p.brandName, p.brandSlug);
     return map;
   }, [products]);
-  const sizes = useMemo(
-    () => [...new Set(products.flatMap((p) => p.sizes.map((s) => s.size).filter(Boolean)))].sort() as string[],
-    [products]
-  );
 
   const filtered = products.filter((p) => {
     if (section === "accessories") {
@@ -94,7 +89,6 @@ export function ShopClient({ initialProducts, section }: Props) {
       if (subCategory !== "all" && p.category !== subCategory) return false;
     }
     if (brand !== "all" && p.brandName !== brand) return false;
-    if (size !== "all" && !p.sizes.some((s) => s.size === size)) return false;
     if (fabric !== "all" && !(p.fibreComposition ?? "").toLowerCase().includes(fabric.toLowerCase())) return false;
     if (maxPrice && (p.priceGbp == null || p.priceGbp > Number(maxPrice))) return false;
     return true;
@@ -107,11 +101,10 @@ export function ShopClient({ initialProducts, section }: Props) {
     filtered.sort((a, b) => (b.priceGbp ?? -Infinity) - (a.priceGbp ?? -Infinity));
   }
 
-  const activeFilterCount = [brand !== "all", size !== "all", fabric !== "all", !!maxPrice].filter(Boolean).length;
+  const activeFilterCount = [brand !== "all", fabric !== "all", !!maxPrice].filter(Boolean).length;
 
   function clearFilters() {
     setBrand("all");
-    setSize("all");
     setFabric("all");
     setMaxPrice("");
   }
@@ -277,31 +270,6 @@ export function ShopClient({ initialProducts, section }: Props) {
                       }`}
                     >
                       {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Size</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setSize("all")}
-                    className={`px-3 py-1 text-xs rounded-full border ${
-                      size === "all" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                    }`}
-                  >
-                    All
-                  </button>
-                  {sizes.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSize(size === s ? "all" : s)}
-                      className={`px-3 py-1 text-xs rounded-full border whitespace-nowrap ${
-                        size === s ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {s}
                     </button>
                   ))}
                 </div>

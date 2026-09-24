@@ -165,7 +165,7 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
             className="mt-1 w-full border-0 border-b border-gray-300 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-gray-900 focus:outline-none focus:ring-0"
           />
         </label>
-        <p className="mt-1.5 text-[11px] text-gray-400">Your collection code goes here.</p>
+        <p className="mt-1.5 text-[11px] text-gray-400">We'll send your confirmation and collection code here.</p>
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
