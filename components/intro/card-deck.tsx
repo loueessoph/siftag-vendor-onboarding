@@ -12,27 +12,47 @@ export type DeckCard = {
   href?: string;
 };
 
+const EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+const SWIPE_AT = 90;
+
 /**
- * A deck of 4:5 cards: the top one can be dragged left or right (finger or
- * mouse) and flicks away to reveal the next; arrows and dots do the same
- * for anyone who'd rather click. Loops round at the end.
+ * A stacked deck. Every card is always rendered in its slot (top, second,
+ * third, then hidden behind), and moving to the next card is one eased
+ * transition: the top card slides out to the side and glides round to the
+ * bottom of the pile while the rest rise a place. Drag with a finger or
+ * mouse, or use the arrows, dots or keyboard.
  */
 export function CardDeck({ cards }: { cards: DeckCard[] }) {
+  const count = cards.length;
   const [index, setIndex] = useState(0);
-  const [drag, setDrag] = useState<{ dx: number; dragging: boolean; leaving: -1 | 0 | 1 }>({ dx: 0, dragging: false, leaving: 0 });
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  /** The card on its way round to the back, and which side it left by. */
+  const [leaving, setLeaving] = useState<{ card: number; dir: -1 | 1 } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const moved = useRef(false);
-  const count = cards.length;
+  const busy = useRef(false);
 
   const advance = useCallback(
     (dir: -1 | 1) => {
-      setDrag({ dx: dir * 600, dragging: false, leaving: dir });
+      if (busy.current || count < 2) return;
+      busy.current = true;
+      const card = index;
+      // Phase 1: the top card slides out to the side.
+      setDragging(false);
+      setLeaving({ card, dir });
+      setDx(dir * 520);
+      // Phase 2: it belongs to the back now; the transition carries it there.
       window.setTimeout(() => {
         setIndex((i) => (i + 1) % count);
-        setDrag({ dx: 0, dragging: false, leaving: 0 });
-      }, 260);
+        setDx(0);
+      }, 230);
+      window.setTimeout(() => {
+        setLeaving(null);
+        busy.current = false;
+      }, 620);
     },
-    [count]
+    [count, index]
   );
 
   useEffect(() => {
@@ -45,79 +65,112 @@ export function CardDeck({ cards }: { cards: DeckCard[] }) {
   }, [advance]);
 
   function onPointerDown(e: React.PointerEvent) {
+    if (busy.current) return;
     start.current = { x: e.clientX, y: e.clientY };
     moved.current = false;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDrag((d) => ({ ...d, dragging: true }));
+    setDragging(true);
   }
   function onPointerMove(e: React.PointerEvent) {
     if (!start.current) return;
-    const dx = e.clientX - start.current.x;
-    if (Math.abs(dx) > 6) moved.current = true;
-    setDrag({ dx, dragging: true, leaving: 0 });
+    const d = e.clientX - start.current.x;
+    if (Math.abs(d) > 6) moved.current = true;
+    setDx(d);
   }
   function onPointerUp() {
     if (!start.current) return;
-    const dx = drag.dx;
     start.current = null;
-    if (Math.abs(dx) > 90) advance(dx > 0 ? 1 : -1);
-    else setDrag({ dx: 0, dragging: false, leaving: 0 });
+    setDragging(false);
+    if (Math.abs(dx) > SWIPE_AT) advance(dx > 0 ? 1 : -1);
+    else setDx(0);
   }
 
   if (count === 0) return null;
-  const top = cards[index];
-  // Three underneath: two peek out, the third is only there so its image is already loaded when it surfaces.
-  const behind = [1, 2, 3].map((n) => cards[(index + n) % count]);
 
   return (
     <div className="select-none">
-      <div className="relative mx-auto aspect-[4/5] w-full max-w-[420px]">
-        {/* the two underneath, peeking out */}
-        {behind.map((card, n) => (
-          <div
-            key={`${card.src}-${n}`}
-            className="absolute inset-0 overflow-hidden rounded-2xl bg-gray-100 shadow-md"
-            style={{ transform: `translateY(${Math.min(n + 1, 2) * 10}px) scale(${1 - Math.min(n + 1, 2) * 0.04})`, zIndex: 2 - n, visibility: n > 1 ? "hidden" : "visible" }}
-          >
-            <Image src={card.src} alt="" fill loading="eager" sizes="(max-width: 640px) 90vw, 420px" className="object-cover" />
-          </div>
-        ))}
-
-        {/* the top card */}
-        <div
-          className="absolute inset-0 touch-pan-y overflow-hidden rounded-2xl bg-gray-100 shadow-xl"
-          style={{
-            zIndex: 3,
-            transform: `translateX(${drag.dx}px) rotate(${drag.dx / 18}deg)`,
-            transition: drag.dragging ? "none" : "transform 260ms ease",
-            opacity: drag.leaving ? 0 : 1,
-            cursor: drag.dragging ? "grabbing" : "grab",
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
-          {top.href ? (
-            <Link href={top.href} draggable={false} onClick={(e) => moved.current && e.preventDefault()} className="block h-full w-full">
-              <Image src={top.src} alt={top.alt} fill priority sizes="(max-width: 640px) 90vw, 420px" className="object-cover" draggable={false} />
-            </Link>
-          ) : (
-            <Image src={top.src} alt={top.alt} fill priority sizes="(max-width: 640px) 90vw, 420px" className="object-cover" draggable={false} />
-          )}
-        </div>
+      {/* Clipped with room for the shadow, so a card leaving the pile never crosses into the copy beside it. */}
+      <div className="-mx-6 -my-8 overflow-hidden px-6 py-8">
+      <div className="relative mx-auto aspect-[4/5] w-full max-w-[420px]" style={{ perspective: "1200px" }}>
+        {cards.map((card, i) => {
+          const pos = (i - index + count) % count; // 0 = top
+          const isLeaving = leaving?.card === i;
+          const onTop = pos === 0 && !isLeaving;
+          const depth = Math.min(pos, 2);
+          let transform: string;
+          let zIndex: number;
+          let opacity = 1;
+          if (isLeaving && pos === 0) {
+            // Phase 1: sliding out, still on top.
+            transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+            zIndex = count + 1;
+          } else if (isLeaving) {
+            // Phase 2: gliding round to the bottom of the pile from the side it left by.
+            transform = `translateY(${depth * 12}px) scale(${1 - depth * 0.05})`;
+            zIndex = 0;
+          } else if (onTop) {
+            transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+            zIndex = count;
+          } else {
+            transform = `translateY(${depth * 12}px) scale(${1 - depth * 0.05})`;
+            zIndex = count - pos;
+            opacity = pos > 2 ? 0 : 1;
+          }
+          const transition = onTop && dragging ? "none" : `transform 420ms ${EASE}, opacity 300ms ${EASE}`;
+          const interactive = onTop && !busy.current;
+          const image = (
+            <Image
+              src={card.src}
+              alt={pos <= 2 ? card.alt : ""}
+              fill
+              priority={pos <= 1}
+              loading={pos <= 3 ? "eager" : "lazy"}
+              sizes="(max-width: 640px) 90vw, 420px"
+              className="object-cover"
+              draggable={false}
+            />
+          );
+          return (
+            <div
+              key={card.src}
+              className="absolute inset-0 touch-pan-y overflow-hidden rounded-2xl bg-gray-100"
+              style={{
+                transform,
+                zIndex,
+                opacity,
+                transition,
+                boxShadow: pos === 0 ? "0 18px 40px rgba(0,0,0,0.18)" : "0 6px 16px rgba(0,0,0,0.10)",
+                cursor: interactive ? (dragging ? "grabbing" : "grab") : "default",
+                pointerEvents: interactive ? "auto" : "none",
+              }}
+              onPointerDown={interactive ? onPointerDown : undefined}
+              onPointerMove={interactive ? onPointerMove : undefined}
+              onPointerUp={interactive ? onPointerUp : undefined}
+              onPointerCancel={interactive ? onPointerUp : undefined}
+            >
+              {card.href && onTop ? (
+                <Link href={card.href} draggable={false} onClick={(e) => moved.current && e.preventDefault()} className="block h-full w-full">
+                  {image}
+                </Link>
+              ) : (
+                image
+              )}
+            </div>
+          );
+        })}
+      </div>
       </div>
 
-      <div className="mx-auto mt-5 flex w-full max-w-[420px] items-center justify-between">
-        <button type="button" aria-label="Previous card" onClick={() => advance(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900">
+      <div className="mx-auto mt-6 flex w-full max-w-[420px] items-center justify-between">
+        <button type="button" aria-label="Previous card" onClick={() => advance(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition-colors hover:border-gray-900">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-1.5">
           {cards.map((c, i) => (
-            <span key={c.src} className={`h-1.5 rounded-full transition-all ${i === index ? "w-4 bg-gray-900" : "w-1.5 bg-gray-300"}`} />
+            <span key={c.src} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? "w-4 bg-gray-900" : "w-1.5 bg-gray-300"}`} />
           ))}
         </div>
-        <button type="button" aria-label="Next card" onClick={() => advance(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900">
+        <button type="button" aria-label="Next card" onClick={() => advance(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition-colors hover:border-gray-900">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
