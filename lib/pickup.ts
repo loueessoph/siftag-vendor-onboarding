@@ -8,6 +8,7 @@
 import { fromPopup, supabaseAdmin } from "./supabase/server";
 import { getUnitsLineItems } from "./express";
 import { notifyOrderReady } from "./email";
+import { reconcilePendingOrders } from "./reconcile";
 
 export type PickupOrder = {
   collectCode: string;
@@ -23,6 +24,7 @@ export type PickupOrder = {
 };
 
 export async function listPickups(): Promise<PickupOrder[]> {
+  await reconcilePendingOrders();
   const { data: orders, error } = await fromPopup("popup_orders")
     .select("id, collect_code, status, paid_at, collected_at, subtotal_gbp, pickup_handler, pickup_taken_at, packed_at, popup_customers(name, email, phone)")
     .eq("source", "express")
