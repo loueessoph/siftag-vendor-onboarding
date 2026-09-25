@@ -19,13 +19,18 @@ export async function setUnitStatusAction(formData: FormData) {
   // Named staff account if there is one, so the unit history says who tapped.
   const session = await readSession();
   const changedBy = session?.role === "staff" ? session.name : String(formData.get("changed_by") ?? "staff");
+  // The product screen lists many pieces; the single-piece screen just one.
+  // Either way, land back on the screen the button was on.
+  const productId = String(formData.get("product_id") ?? "");
+  const back = productId ? `/admin/staff?product=${encodeURIComponent(productId)}` : `/admin/staff?code=${encodeURIComponent(unitCode)}`;
 
   if (!unitId || !eventId || !isUnitStatus(toStatus)) {
-    redirect(`/admin/staff?code=${encodeURIComponent(unitCode)}&error=1`);
+    redirect(`${back}&error=1`);
   }
 
   await setUnitStatus({ unitId, eventId, toStatus, changedBy });
   revalidatePath("/admin/staff");
   revalidatePath("/admin/dashboard");
-  redirect(`/admin/staff?code=${encodeURIComponent(unitCode)}&updated=1`);
+  revalidatePath("/admin/items");
+  redirect(`${back}&updated=${encodeURIComponent(unitCode)}`);
 }

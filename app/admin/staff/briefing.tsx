@@ -169,7 +169,10 @@ export function Briefing({ brands, today }: { brands: Brand[]; today: string }) 
                 Open <Tab href="/admin/items">Item lookup</Tab> and search by name, brand or the code on the tag. Each card shows
                 the photo, the sizes, how many of each are left and every tag code.
               </li>
-              <li>Tap a tag code to change that piece&apos;s status (next question).</li>
+              <li>
+                Tap a tag code to copy it, handy for typing it into the till. Tap the photo to change the status of any piece of
+                that style (next question).
+              </li>
             </Steps>
           </Faq>
 
@@ -180,8 +183,8 @@ export function Briefing({ brands, today }: { brands: Brand[]; today: string }) 
             </p>
             <Steps>
               <li>
-                When a customer takes a piece to try on, find it in <Tab href="/admin/items">Item lookup</Tab>, tap its code and
-                press <strong className="font-medium">Fitting room</strong>.
+                When a customer takes a piece to try on, find it in <Tab href="/admin/items">Item lookup</Tab>, tap its photo,
+                find the piece by its size and tag code, and press <strong className="font-medium">Fitting room</strong>.
               </li>
               <li>
                 If they hand it back, press <strong className="font-medium">Available</strong>. If they buy it, the till marks it

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AdminItem } from "@/lib/admin-items";
 import type { UnitStatus } from "@/lib/live-event";
 import { sized } from "@/lib/images";
@@ -16,6 +16,32 @@ const STATUS: Record<UnitStatus, { label: string; dot: string }> = {
 };
 
 const money = (n: number | null) => (n == null ? "—" : `£${n.toFixed(2)}`);
+
+/** Clipboard API where the page is allowed it (https), the old selection trick elsewhere. */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The storefront's card grid, for staff: each card carries its stock by
@@ -39,6 +65,13 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
     return i.sizes.some((s) => s.units.some((u) => u.code.toLowerCase().includes(q)) || (s.sku ?? "").toLowerCase().includes(q));
   });
   const codeMatch = q.length >= 4 ? q.toUpperCase() : null;
+  // Which code was just copied, for the "Copied" flash on that tag.
+  const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(null), 1500);
+    return () => clearTimeout(id);
+  }, [copied]);
 
   return (
     <div>
@@ -74,7 +107,11 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
       <div className="grid grid-cols-1 gap-8 pt-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
         {shown.map((item) => (
           <article key={item.productId} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 sm:flex sm:flex-col">
-            <Link href={`/popup/product/${item.productId}`} target="_blank" className="relative aspect-[3/4] overflow-hidden rounded-lg bg-gray-200 sm:mb-3">
+            <Link
+              href={`/admin/staff?product=${item.productId}`}
+              title="Change a piece's status"
+              className="relative aspect-[3/4] overflow-hidden rounded-lg bg-gray-200 sm:mb-3"
+            >
               {item.imageUrl ? (
                 <Image src={sized(item.imageUrl, 600)} alt={item.title} fill sizes="(max-width: 640px) 30vw, (max-width: 768px) 50vw, 25vw" className="object-cover object-top" />
               ) : (
@@ -106,15 +143,30 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
                   <span className="flex min-w-0 flex-1 flex-wrap justify-end gap-x-2 gap-y-0.5">
                     {s.units.length === 0 && <span className="text-neutral-300">no tags</span>}
                     {s.units.map((u) => (
-                      <Link
+                      <button
                         key={u.code}
-                        href={`/admin/staff?code=${u.code}`}
-                        title={`${STATUS[u.status].label} · tap to change`}
-                        className={`inline-flex items-center gap-1 font-mono hover:underline ${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${codeMatch && u.code === codeMatch ? "rounded bg-yellow-100 px-1" : ""}`}
+                        type="button"
+                        onClick={async () => {
+                          if (await copyText(u.code)) setCopied(u.code);
+                        }}
+                        title={`${STATUS[u.status].label} · tap to copy the code`}
+                        className={`inline-flex items-center gap-1 rounded px-1 font-mono transition-colors ${
+                          copied === u.code
+                            ? "bg-neutral-900 text-white"
+                            : u.status === "available"
+                              ? "text-neutral-900 hover:bg-neutral-100"
+                              : "text-neutral-400 line-through hover:bg-neutral-100"
+                        } ${codeMatch && u.code === codeMatch && copied !== u.code ? "bg-yellow-100" : ""}`}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${STATUS[u.status].dot}`} />
-                        {u.code}
-                      </Link>
+                        {copied === u.code ? (
+                          "Copied"
+                        ) : (
+                          <>
+                            <span className={`h-1.5 w-1.5 rounded-full ${STATUS[u.status].dot}`} />
+                            {u.code}
+                          </>
+                        )}
+                      </button>
                     ))}
                   </span>
                 </li>
