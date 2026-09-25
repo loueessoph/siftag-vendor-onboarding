@@ -4,6 +4,7 @@
  * list is fine by one screen and rejected by another.
  */
 
+import { sizeBase, sizeQualifierRank } from "./sizes";
 import { supabaseAdmin } from "./supabase/server";
 import { MINIMUM_NATURAL_PCT, readComposition, splitNotes } from "./fibre";
 import { isCustomProduct } from "./custom-items";
@@ -109,8 +110,8 @@ const SIZE_RANK = ["xxs", "xs", "s", "m", "l", "xl", "xxl", "xxxl"];
  */
 export function sizeOrder(size: string | null): number {
   if (!size) return 999;
-  // "S Reg", "XS Long": rank on the first word, then keep the rest stable.
-  const index = SIZE_RANK.indexOf(size.trim().toLowerCase().split(/[\s/]+/)[0]);
+  // "S Reg", "XS Long": rank on the size itself; the length is a tie-break.
+  const index = SIZE_RANK.indexOf(sizeBase(size).toLowerCase().split(/[\s/]+/)[0]);
   if (index !== -1) return index;
   const numeric = Number(size.replace(/[^\d.]/g, ""));
   return Number.isFinite(numeric) && numeric > 0 ? 100 + numeric : 998;
@@ -124,7 +125,7 @@ function productColour(variants: { colour: string | null }[]): string | null {
 }
 
 export function compareSizes(a: string | null, b: string | null): number {
-  return sizeOrder(a) - sizeOrder(b) || (a ?? "").localeCompare(b ?? "");
+  return sizeOrder(a) - sizeOrder(b) || sizeQualifierRank(a) - sizeQualifierRank(b) || (a ?? "").localeCompare(b ?? "");
 }
 
 export type SelectionIssue = {

@@ -19,7 +19,7 @@ import { fromPopup } from "./supabase/server";
 import { fetchAllRows } from "./supabase/fetch-all";
 import { getActiveEvent } from "./live-event";
 import { money } from "./format";
-import { normalizeSizeLabel } from "./sizes";
+import { normalizeSizeLabel, sizeBase, sizeQualifierRank } from "./sizes";
 import { bodyFabric, splitNotes } from "./fibre";
 import { siteOrigin } from "./stripe";
 
@@ -40,9 +40,10 @@ export type TagUnit = {
 
 const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
 function sizeRank(size: string | null): number {
-  if (!size) return SIZE_ORDER.length + 1;
-  const i = SIZE_ORDER.indexOf(size.toUpperCase());
-  return i === -1 ? SIZE_ORDER.length : i;
+  if (!size) return (SIZE_ORDER.length + 1) * 10;
+  const i = SIZE_ORDER.indexOf(sizeBase(size));
+  // Regular before Long within a size, so a vendor's tags come out in rail order.
+  return (i === -1 ? SIZE_ORDER.length : i) * 10 + sizeQualifierRank(size);
 }
 
 /**
