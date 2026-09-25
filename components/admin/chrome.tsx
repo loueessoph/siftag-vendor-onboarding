@@ -1,3 +1,4 @@
+import { PickupBadge } from "./pickup-badge";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -59,6 +60,7 @@ export async function AdminShell({
               {nav.map((item) => (
                 <Link key={item.href} href={item.href} className="whitespace-nowrap text-neutral-500 transition-colors hover:text-neutral-900">
                   {item.label}
+                  {item.href === "/admin/pickup" && <PickupBadge />}
                 </Link>
               ))}
             </nav>
@@ -78,6 +80,7 @@ export async function AdminShell({
             {nav.map((item) => (
               <Link key={item.href} href={item.href} className="whitespace-nowrap py-1 text-neutral-500 transition-colors hover:text-neutral-900">
                 {item.label}
+                {item.href === "/admin/pickup" && <PickupBadge />}
               </Link>
             ))}
           </nav>
