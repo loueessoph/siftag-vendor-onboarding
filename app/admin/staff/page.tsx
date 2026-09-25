@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/chrome";
 import Link from "next/link";
 import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
+import { CopyCode } from "@/components/admin/copy-code";
 import { getActiveEvent, getProductUnitsForStaff, getUnitForStaff, type UnitStatus } from "@/lib/live-event";
 import { fromPopup } from "@/lib/supabase/server";
 import { setUnitStatusAction } from "./actions";
@@ -130,7 +131,7 @@ export default async function StaffConsole({
             imageUrl={product.imageUrl}
             brandName={product.brandName}
             title={product.productTitle}
-            sub={`${product.units.length} piece${product.units.length === 1 ? "" : "s"}. Tap a piece's new status.`}
+            sub={`${product.units.length} piece${product.units.length === 1 ? "" : "s"}. Tap a code to copy it, or a status to change that piece.`}
           />
 
           <ul className="mt-6 divide-y divide-neutral-100 border-y border-neutral-100 text-xs">
@@ -142,10 +143,13 @@ export default async function StaffConsole({
                     {u.size ?? "One size"}
                     {u.colour && <span className="text-neutral-400"> · {u.colour}</span>}
                   </span>
-                  <span className={`inline-flex items-center gap-1 font-mono ${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${updated === u.unitCode ? "rounded bg-yellow-100 px-1" : ""}`}>
+                  <CopyCode
+                    code={u.unitCode}
+                    className={`${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${updated === u.unitCode ? "bg-yellow-100" : "hover:bg-neutral-100"}`}
+                  >
                     <span className={`h-1.5 w-1.5 rounded-full ${DOT[u.status]}`} />
                     {u.unitCode}
-                  </span>
+                  </CopyCode>
                 </div>
                 <StatusButtons unitId={u.id} eventId={product.eventId} unitCode={u.unitCode} status={u.status} productId={product.productId} />
               </li>
@@ -170,7 +174,7 @@ export default async function StaffConsole({
           <Link href="/admin/items" className="mb-4 inline-block text-[11px] uppercase tracking-[0.2em] text-neutral-500 underline underline-offset-4 hover:text-neutral-900">
             ← All items
           </Link>
-          <StyleHeader imageUrl={unit.imageUrl} brandName={unit.brandName} title={unit.productTitle} sub="One piece. Tap its new status." />
+          <StyleHeader imageUrl={unit.imageUrl} brandName={unit.brandName} title={unit.productTitle} sub="One piece. Tap the code to copy it, or its new status." />
           <ul className="mt-6 divide-y divide-neutral-100 border-y border-neutral-100 text-xs">
             <li className="py-3">
               <div className="flex items-center justify-between gap-3">
@@ -179,10 +183,10 @@ export default async function StaffConsole({
                   {unit.colour && <span className="text-neutral-400"> · {unit.colour}</span>}
                   {unit.location && <span className="text-neutral-400"> · {unit.location}</span>}
                 </span>
-                <span className="inline-flex items-center gap-1 font-mono text-neutral-900">
+                <CopyCode code={unit.unitCode} className="text-neutral-900 hover:bg-neutral-100">
                   <span className={`h-1.5 w-1.5 rounded-full ${DOT[unit.status]}`} />
                   {unit.unitCode}
-                </span>
+                </CopyCode>
               </div>
               <StatusButtons unitId={unit.id} eventId={event.id} unitCode={unit.unitCode} status={unit.status} />
             </li>
