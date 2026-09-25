@@ -22,8 +22,8 @@ const money = (n: number | null) => (n == null ? "—" : `£${n.toFixed(2)}`);
  * The storefront's card grid, for staff: each card carries its stock by
  * size and every tag code with its status. Type part of a name, a brand or
  * a tag code to find something; the code under a garment's QR is the
- * quickest way to a specific piece. Tapping a code opens the status
- * buttons for that garment.
+ * quickest way to a specific piece. Tapping a code copies it; tapping the
+ * photo opens the status buttons for every piece of that style.
  */
 export function ItemsClient({ items }: { items: AdminItem[] }) {
   const [query, setQuery] = useState("");
