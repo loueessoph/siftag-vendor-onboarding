@@ -28,7 +28,8 @@ export type AdminItem = {
   counts: Record<UnitStatus, number>;
 };
 
-export async function listAdminItems(): Promise<AdminItem[]> {
+/** Every brand's items, or just one brand's when `brandId` is given (the vendor's own page). */
+export async function listAdminItems(brandId?: string): Promise<AdminItem[]> {
   const event = await getActiveEvent();
   await releaseExpiredHolds(event.id);
 
@@ -46,9 +47,10 @@ export async function listAdminItems(): Promise<AdminItem[]> {
       care_notes: string | null;
       approval_status: string;
       popup_brand_id: string;
-    }>("popup_products", "id, title, image_url, image_urls, fibre_composition, care_notes, approval_status, popup_brand_id", (q) =>
-      q.eq("is_excluded", false).neq("approval_status", "rejected")
-    ),
+    }>("popup_products", "id, title, image_url, image_urls, fibre_composition, care_notes, approval_status, popup_brand_id", (q) => {
+      const base = q.eq("is_excluded", false).neq("approval_status", "rejected");
+      return brandId ? base.eq("popup_brand_id", brandId) : base;
+    }),
     fetchAllRows<{
       id: string;
       size: string | null;
@@ -97,7 +99,9 @@ export async function listAdminItems(): Promise<AdminItem[]> {
       title: p.title,
       brandName: brand?.name ?? "Unknown",
       brandSlug: brand?.slug ?? "",
-      imageUrl: p.image_urls?.[0] ?? p.image_url ?? null,
+      // A blank entry in image_urls (a photo that was never uploaded) would
+      // otherwise render as a broken image instead of the placeholder.
+      imageUrl: p.image_urls?.find((u) => typeof u === "string" && u.trim()) ?? (p.image_url?.trim() || null),
       fibreComposition: p.fibre_composition?.trim() || bodyFabric(splitNotes(p.care_notes).fabric),
       priceGbp: prices.length ? Math.min(...prices) : null,
       approval: p.approval_status,
