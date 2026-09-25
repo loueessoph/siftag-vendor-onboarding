@@ -130,6 +130,7 @@ const STAFF_PATHS = [
   "/admin/pickup",
   "/api/admin/till",
   "/api/admin/pickup",
+  "/api/admin/email/status",
   "/admin/login",
   "/api/admin/login",
   "/api/admin/logout",
