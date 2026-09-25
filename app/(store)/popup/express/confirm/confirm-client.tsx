@@ -70,12 +70,15 @@ export function ConfirmClient({ collectCode }: Props) {
     }
   }, [order, collectCode]);
 
-  // Paid: those garments are theirs now, so they leave the bag.
+  // Paid: those garments are theirs now, so they leave the bag. Keyed on
+  // the order alone: the cart object changes whenever the bag does, and
+  // depending on it would re-run this after its own removal.
+  const removeMany = cart.removeMany;
   useEffect(() => {
     if (order && (order.status === "paid" || order.status === "collected")) {
-      cart.removeMany(order.items.map((i) => i.unit_code));
+      removeMany(order.items.map((i) => i.unit_code));
     }
-  }, [order, cart]);
+  }, [order, removeMany]);
 
   if (error)
     return (
