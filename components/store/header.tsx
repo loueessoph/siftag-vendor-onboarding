@@ -16,7 +16,7 @@ export function StoreHeader() {
     <header className="w-full bg-white" role="banner">
       {/* The wordmark is centred on the page, not between the two sides, so
           the wider "track my order" button on the left doesn't push it over. */}
-      <div className="relative mx-auto flex max-w-7xl items-center justify-between px-4 pt-3 md:px-6">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between px-4 pt-5 md:px-6 md:pt-7">
         <div className="flex items-center gap-4">
           <span className="hidden text-[11px] tracking-widest text-gray-500 md:inline">FABRICA X · 25–27 SEPT</span>
           <Link
@@ -35,7 +35,7 @@ export function StoreHeader() {
           <BagButton />
         </div>
       </div>
-      <div className="h-3" />
+      <div className="h-4 md:h-5" />
     </header>
   );
 }

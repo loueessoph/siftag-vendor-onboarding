@@ -64,7 +64,7 @@ export default function IntroPage() {
         >
           Shop the items
         </Link>
-        <p className="mt-2.5 text-[9px] uppercase tracking-[0.2em] text-gray-400 md:text-[10px]">All sales are final</p>
+        <p className="mt-2.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-900 md:text-[10px]">Pickup only, no shipping · All sales are final</p>
       </div>
     </main>
   );
