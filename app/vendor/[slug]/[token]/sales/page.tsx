@@ -7,6 +7,9 @@ import { vendorPath } from "@/lib/brands";
 import { getVendorByToken } from "@/lib/vendor";
 import { getVendorSalesReport } from "@/lib/vendor-sales";
 import { money } from "@/lib/format";
+import Image from "next/image";
+import { sized } from "@/lib/images";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 
 export const metadata: Metadata = {
   title: "Your sales: Siftag at Fabrica X",
@@ -70,43 +73,65 @@ export default async function VendorSalesPage({ params }: { params: Promise<{ sl
         <Section>
           <p className="text-[15px] font-medium">By product</p>
           <div className="mt-1.5">
-            <Muted>Best sellers first. Each size shows sold / still available.</Muted>
+            <Muted>Best sellers first. Each size says how many are still on the rail and how many have sold.</Muted>
           </div>
           {report.byProduct.length === 0 ? (
             <div className="mt-6"><Muted>No stock on the rail yet.</Muted></div>
           ) : (
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full border-y border-neutral-200 text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 text-left text-[11px] uppercase tracking-[0.15em] text-neutral-500">
-                    <th className="py-3 pr-4 font-normal">Product</th>
-                    <th className="py-3 pr-4 font-normal">Sizes (sold / left)</th>
-                    <th className="py-3 pr-4 text-right font-normal">Sold</th>
-                    <th className="py-3 pr-4 text-right font-normal">Left</th>
-                    <th className="py-3 text-right font-normal">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {report.byProduct.map((p) => (
-                    <tr key={p.productId} className={p.unitsSold === 0 ? "text-neutral-500" : ""}>
-                      <td className="py-3 pr-4 align-top">{p.title}</td>
-                      <td className="py-3 pr-4 align-top">
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-neutral-500">
-                          {p.sizes.map((s) => (
-                            <span key={s.size ?? "one"} className={s.sold > 0 ? "text-neutral-900" : ""}>
-                              {s.size ?? "One size"} <span className="tabular-nums">{s.sold}/{s.remaining}</span>
+            <ul className="mt-6 divide-y divide-neutral-200 border-y border-neutral-200">
+              {report.byProduct.map((p) => (
+                <li key={p.productId} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-4 py-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
+                  <div className="relative row-span-2 h-[4.5rem] w-14 overflow-hidden rounded-md bg-gray-200 sm:row-span-1">
+                    {p.imageUrl ? (
+                      <Image src={sized(p.imageUrl, 200)} alt="" fill sizes="56px" className="object-cover object-top" />
+                    ) : (
+                      <PhotoPlaceholder />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm text-neutral-900">
+                      {p.title}
+                      {p.colour && <span className="text-neutral-500"> · {p.colour}</span>}
+                    </p>
+                    <p className="mt-0.5 text-xs text-neutral-500">
+                      {p.unitsSold === 0
+                        ? `${p.remaining} on the rail, none sold yet`
+                        : `${p.unitsSold} sold for ${money(p.revenueGbp)} · ${p.remaining} left`}
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {p.sizes.map((s) => {
+                        const soldOut = s.remaining === 0;
+                        return (
+                          <span
+                            key={s.size ?? "one"}
+                            className={`inline-flex items-baseline gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                              soldOut ? "border-neutral-200 text-neutral-400" : "border-neutral-300 text-neutral-900"
+                            }`}
+                          >
+                            <span className={soldOut ? "line-through" : "font-medium"}>{s.size ?? "One size"}</span>
+                            <span className="text-[11px] text-neutral-500">
+                              {soldOut ? "sold out" : `${s.remaining} left`}
+                              {s.sold > 0 && !soldOut && ` · ${s.sold} sold`}
                             </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-3 pr-4 text-right align-top tabular-nums">{p.unitsSold}</td>
-                      <td className="py-3 pr-4 text-right align-top tabular-nums">{p.remaining}</td>
-                      <td className="py-3 text-right align-top tabular-nums">{money(p.revenueGbp)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="col-start-2 mt-3 flex gap-6 text-sm sm:col-start-3 sm:mt-0 sm:flex-col sm:items-end sm:gap-1 sm:text-right">
+                    <span className="tabular-nums">
+                      <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">Sold </span>
+                      {p.unitsSold}
+                    </span>
+                    <span className="tabular-nums">
+                      <span className="text-[11px] uppercase tracking-[0.15em] text-neutral-500">Left </span>
+                      {p.remaining}
+                    </span>
+                    <span className="tabular-nums text-neutral-900">{money(p.revenueGbp)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </Section>
 

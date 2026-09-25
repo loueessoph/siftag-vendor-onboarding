@@ -25,6 +25,9 @@ export type Sale = {
 export type ProductLine = {
   productId: string;
   title: string;
+  /** The colour(s) of this style, to tell two same-named products apart. */
+  colour: string | null;
+  imageUrl: string | null;
   unitsSold: number;
   revenueGbp: number;
   remaining: number;
@@ -52,7 +55,7 @@ export async function getVendorSalesReport(brandId: string): Promise<VendorSales
 
   // Everything the brand has on the floor, with what it is.
   const { data: products, error: pErr } = await fromPopup("popup_products")
-    .select("id, title, popup_variants(id, size, colour, popup_units(id, unit_code, status))")
+    .select("id, title, image_url, image_urls, popup_variants(id, size, colour, popup_units(id, unit_code, status))")
     .eq("popup_brand_id", brandId)
     .eq("is_excluded", false);
   if (pErr) throw pErr;
@@ -64,8 +67,21 @@ export async function getVendorSalesReport(brandId: string): Promise<VendorSales
   let unitsTotal = 0;
   let remaining = 0;
   for (const p of products ?? []) {
-    const line = { productId: p.id as string, title: p.title as string, unitsSold: 0, revenueGbp: 0, remaining: 0, sizes: [], sizeMap: new Map() };
-    for (const v of (p.popup_variants ?? []) as VariantRow[]) {
+    const variants = (p.popup_variants ?? []) as VariantRow[];
+    const colours = [...new Set(variants.map((v) => v.colour?.trim()).filter((c): c is string => Boolean(c)))];
+    const imageUrls = (p.image_urls as string[] | null) ?? [];
+    const line = {
+      productId: p.id as string,
+      title: p.title as string,
+      colour: colours.length ? colours.join(" / ") : null,
+      imageUrl: imageUrls.find((u) => typeof u === "string" && u.trim()) ?? ((p.image_url as string | null)?.trim() || null),
+      unitsSold: 0,
+      revenueGbp: 0,
+      remaining: 0,
+      sizes: [],
+      sizeMap: new Map(),
+    };
+    for (const v of variants) {
       const size = normalizeSizeLabel(v.size);
       for (const u of v.popup_units ?? []) {
         unitsTotal++;
