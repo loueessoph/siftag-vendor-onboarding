@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/chrome";
 import Link from "next/link";
-import { Button, Muted, Pill } from "@/components/ui";
+import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
 import { getActiveEvent, getProductUnitsForStaff, getUnitForStaff, type UnitStatus } from "@/lib/live-event";
 import { fromPopup } from "@/lib/supabase/server";
 import { setUnitStatusAction } from "./actions";
@@ -17,9 +17,67 @@ export const dynamic = "force-dynamic";
 const STATUS_BUTTONS: { value: UnitStatus; label: string }[] = [
   { value: "available", label: "Available" },
   { value: "held", label: "Held" },
-  { value: "fitting_room", label: "Fitting Room" },
+  { value: "fitting_room", label: "Fitting room" },
   { value: "sold", label: "Sold" },
 ];
+// Same dots as Item lookup, so a piece reads the same on both screens.
+const DOT: Record<UnitStatus, string> = {
+  available: "bg-green-500",
+  held: "bg-amber-500",
+  fitting_room: "bg-blue-500",
+  sold: "bg-neutral-400",
+};
+
+/** The four status buttons for one piece: current one filled, the rest outlined. */
+function StatusButtons({ unitId, eventId, unitCode, status, productId }: { unitId: string; eventId: string; unitCode: string; status: UnitStatus; productId?: string }) {
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {STATUS_BUTTONS.map((btn) => {
+        const current = status === btn.value;
+        return (
+          <form key={btn.value} action={setUnitStatusAction}>
+            <input type="hidden" name="unit_id" value={unitId} />
+            <input type="hidden" name="event_id" value={eventId} />
+            <input type="hidden" name="unit_code" value={unitCode} />
+            {productId && <input type="hidden" name="product_id" value={productId} />}
+            <input type="hidden" name="to_status" value={btn.value} />
+            <input type="hidden" name="changed_by" value="floor-staff" />
+            <button
+              type="submit"
+              disabled={current}
+              aria-pressed={current}
+              className={`w-full px-2 py-2 text-[11px] uppercase tracking-[0.15em] ${
+                current ? "bg-neutral-900 text-white" : "border border-neutral-900 text-neutral-900 hover:bg-neutral-50"
+              }`}
+            >
+              {btn.label}
+            </button>
+          </form>
+        );
+      })}
+    </div>
+  );
+}
+
+function StyleHeader({ imageUrl, brandName, title, sub }: { imageUrl: string | null; brandName: string; title: string; sub: string }) {
+  return (
+    <div className="flex gap-4">
+      <div className="relative h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-gray-200">
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="h-full w-full object-cover object-top" />
+        ) : (
+          <PhotoPlaceholder />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-xs uppercase tracking-widest text-gray-400">{brandName}</p>
+        <h2 className="mt-1 text-sm text-gray-900">{title}</h2>
+        <p className="mt-1 text-[11px] text-neutral-500">{sub}</p>
+      </div>
+    </div>
+  );
+}
 
 /**
  * The floor staff page. Without a code it is the day brief: hours, how the
@@ -68,47 +126,28 @@ export default async function StaffConsole({
           <Link href="/admin/items" className="mb-4 inline-block text-[11px] uppercase tracking-[0.2em] text-neutral-500 underline underline-offset-4 hover:text-neutral-900">
             ← All items
           </Link>
-          <div className="flex gap-4">
-            {product.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.imageUrl} alt="" className="h-24 w-20 object-cover object-top" />
-            )}
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">{product.brandName}</p>
-              <p className="mt-1 font-medium">{product.productTitle}</p>
-              <Muted>
-                {product.units.length} piece{product.units.length === 1 ? "" : "s"}. Tap a status to change that piece.
-              </Muted>
-            </div>
-          </div>
+          <StyleHeader
+            imageUrl={product.imageUrl}
+            brandName={product.brandName}
+            title={product.productTitle}
+            sub={`${product.units.length} piece${product.units.length === 1 ? "" : "s"}. Tap a piece's new status.`}
+          />
 
-          <ul className="mt-6 divide-y divide-neutral-200 border-y border-neutral-200">
-            {product.units.length === 0 && <li className="py-4 text-sm text-neutral-500">No tags for this style yet.</li>}
+          <ul className="mt-6 divide-y divide-neutral-100 border-y border-neutral-100 text-xs">
+            {product.units.length === 0 && <li className="py-4 text-neutral-500">No tags for this style yet.</li>}
             {product.units.map((u) => (
-              <li key={u.id} className="py-4">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                  <p className="text-sm">
-                    <span className="font-medium">{u.size ?? "One size"}</span>
-                    {u.colour && <span className="text-neutral-500"> · {u.colour}</span>}
-                    <span className="ml-3 font-mono text-xs text-neutral-500">{u.unitCode}</span>
-                  </p>
-                  <Pill tone={u.status === "sold" ? "done" : "neutral"}>{u.status.replace("_", " ")}</Pill>
+              <li key={u.id} className="py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-neutral-900">
+                    {u.size ?? "One size"}
+                    {u.colour && <span className="text-neutral-400"> · {u.colour}</span>}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 font-mono ${u.status === "available" ? "text-neutral-900" : "text-neutral-400 line-through"} ${updated === u.unitCode ? "rounded bg-yellow-100 px-1" : ""}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${DOT[u.status]}`} />
+                    {u.unitCode}
+                  </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {STATUS_BUTTONS.map((btn) => (
-                    <form key={btn.value} action={setUnitStatusAction}>
-                      <input type="hidden" name="unit_id" value={u.id} />
-                      <input type="hidden" name="event_id" value={product.eventId} />
-                      <input type="hidden" name="unit_code" value={u.unitCode} />
-                      <input type="hidden" name="product_id" value={product.productId} />
-                      <input type="hidden" name="to_status" value={btn.value} />
-                      <input type="hidden" name="changed_by" value="floor-staff" />
-                      <Button type="submit" full size="small" variant={u.status === btn.value ? "secondary" : "primary"} disabled={u.status === btn.value}>
-                        {btn.label}
-                      </Button>
-                    </form>
-                  ))}
-                </div>
+                <StatusButtons unitId={u.id} eventId={product.eventId} unitCode={u.unitCode} status={u.status} productId={product.productId} />
               </li>
             ))}
           </ul>
@@ -127,52 +166,27 @@ export default async function StaffConsole({
       )}
 
       {unit && (
-        <div className="max-w-sm border border-neutral-200 p-5">
+        <div className="max-w-xl">
           <Link href="/admin/items" className="mb-4 inline-block text-[11px] uppercase tracking-[0.2em] text-neutral-500 underline underline-offset-4 hover:text-neutral-900">
             ← All items
           </Link>
-          <div className="flex gap-4">
-            {unit.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={unit.imageUrl} alt="" className="h-20 w-20 object-cover" />
-            )}
-            <div>
-              <p className="font-medium">{unit.productTitle}</p>
-              <Muted>
-                {unit.brandName} · {unit.size ?? "—"}
-                {unit.colour ? ` · ${unit.colour}` : ""}
-              </Muted>
-              <p className="mt-1 text-xs text-neutral-400">
-                {unit.unitCode}
-                {unit.location ? ` · ${unit.location}` : ""}
-              </p>
-              <div className="mt-2">
-                <Pill tone={unit.status === "sold" ? "done" : "neutral"}>
-                  {unit.status.replace("_", " ")}
-                </Pill>
+          <StyleHeader imageUrl={unit.imageUrl} brandName={unit.brandName} title={unit.productTitle} sub="One piece. Tap its new status." />
+          <ul className="mt-6 divide-y divide-neutral-100 border-y border-neutral-100 text-xs">
+            <li className="py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-neutral-900">
+                  {unit.size ?? "One size"}
+                  {unit.colour && <span className="text-neutral-400"> · {unit.colour}</span>}
+                  {unit.location && <span className="text-neutral-400"> · {unit.location}</span>}
+                </span>
+                <span className="inline-flex items-center gap-1 font-mono text-neutral-900">
+                  <span className={`h-1.5 w-1.5 rounded-full ${DOT[unit.status]}`} />
+                  {unit.unitCode}
+                </span>
               </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            {STATUS_BUTTONS.map((btn) => (
-              <form key={btn.value} action={setUnitStatusAction}>
-                <input type="hidden" name="unit_id" value={unit.id} />
-                <input type="hidden" name="event_id" value={event.id} />
-                <input type="hidden" name="unit_code" value={unit.unitCode} />
-                <input type="hidden" name="to_status" value={btn.value} />
-                <input type="hidden" name="changed_by" value="floor-staff" />
-                <Button
-                  type="submit"
-                  full
-                  variant={unit.status === btn.value ? "secondary" : "primary"}
-                  disabled={unit.status === btn.value}
-                >
-                  {btn.label}
-                </Button>
-              </form>
-            ))}
-          </div>
+              <StatusButtons unitId={unit.id} eventId={event.id} unitCode={unit.unitCode} status={unit.status} />
+            </li>
+          </ul>
         </div>
       )}
 
