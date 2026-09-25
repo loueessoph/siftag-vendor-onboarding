@@ -63,6 +63,36 @@ export function TillClient({ terminal, staffName }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const total = basket.reduce((s, l) => s + l.priceGbp, 0);
 
+  // The basket, receipt email and any sale in progress survive switching
+  // tabs or a page reload: kept in this browser under the staff member's
+  // name, and cleared by New sale. Nothing is written until the saved
+  // state has been read, or an empty first render would wipe it.
+  const storageKey = `siftag-till:${staffName}`;
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const saved = JSON.parse(raw) as { basket?: TillLine[]; email?: string; order?: TillOrder | null };
+        if (Array.isArray(saved.basket)) setBasket(saved.basket);
+        if (typeof saved.email === "string") setEmail(saved.email);
+        if (saved.order) setOrder(saved.order);
+      }
+    } catch {
+      /* nothing saved, or storage unavailable */
+    }
+    setRestored(true);
+  }, [storageKey]);
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      if (basket.length === 0 && !order && !email) localStorage.removeItem(storageKey);
+      else localStorage.setItem(storageKey, JSON.stringify({ basket, email, order }));
+    } catch {
+      /* storage unavailable: the sale still works, it just won't survive a reload */
+    }
+  }, [restored, storageKey, basket, email, order]);
+
   const focus = useCallback(() => inputRef.current?.focus(), []);
   useEffect(() => {
     if (!order) focus();
