@@ -69,10 +69,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems(next);
     return true;
   }, []);
-  const remove = useCallback((unitCode: string) => setItems((c) => c.filter((i) => i.unitCode !== unitCode)), []);
+  // Both return the bag untouched when nothing matches: a fresh array for
+  // the same contents counts as a change, and an effect that removes paid
+  // items would then re-run forever.
+  const remove = useCallback((unitCode: string) => {
+    setItems((c) => (c.some((i) => i.unitCode === unitCode) ? c.filter((i) => i.unitCode !== unitCode) : c));
+  }, []);
   const removeMany = useCallback((codes: string[]) => {
     const set = new Set(codes.map((c) => c.toUpperCase()));
-    setItems((c) => c.filter((i) => !set.has(i.unitCode.toUpperCase())));
+    setItems((c) => (c.some((i) => set.has(i.unitCode.toUpperCase())) ? c.filter((i) => !set.has(i.unitCode.toUpperCase())) : c));
   }, []);
   const clear = useCallback(() => setItems([]), []);
 

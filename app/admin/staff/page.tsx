@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/chrome";
 import Link from "next/link";
-import { Button, Input, Muted, Pill } from "@/components/ui";
+import { Button, Muted, Pill } from "@/components/ui";
 import { getActiveEvent, getUnitForStaff, type UnitStatus } from "@/lib/live-event";
-import { setUnitStatusAction, collectOrderAction } from "./actions";
+import { fromPopup } from "@/lib/supabase/server";
+import { setUnitStatusAction } from "./actions";
+import { Briefing, brandsForBrief } from "./briefing";
 
 export const metadata: Metadata = {
-  title: "Floor staff: Siftag pop-up admin",
+  title: "Floor staff briefing: Siftag pop-up admin",
   robots: { index: false, follow: false },
 };
 
@@ -20,10 +22,11 @@ const STATUS_BUTTONS: { value: UnitStatus; label: string }[] = [
 ];
 
 /**
- * Tap two of the two-tap flow: the piece was found on the Items page (tap
- * one, which links here with its code); now tap the new status. Plain forms
- * throughout — this is meant to run on a shared iPad at the till, where
- * "does it need JS to work" is not a safe bet.
+ * The floor staff page. Without a code it is the day brief: hours, how the
+ * floor works, customer FAQ, how the till and pickup counter work, and a
+ * line on every brand. With ?code= (linked from Item lookup) it is tap two
+ * of the two-tap status flow: the piece is shown with buttons for its new
+ * status. Plain forms throughout, so it works on any phone without JS.
  */
 export default async function StaffConsole({
   searchParams,
@@ -36,12 +39,16 @@ export default async function StaffConsole({
     collect_error?: string;
   }>;
 }) {
-  const { code, updated, error, collected, collect_error: collectError } = await searchParams;
+  const { code, updated, error } = await searchParams;
   const event = await getActiveEvent();
   const unit = code ? await getUnitForStaff(code) : null;
+  const { data: brandRows } = code
+    ? { data: [] }
+    : await fromPopup("popup_brands").select("name, slug, attending_days");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
   return (
-    <AdminShell eyebrow="Event day" title="Floor staff">
+    <AdminShell eyebrow="Event day" title={code ? "Change an item's status" : "Floor staff briefing"}>
       {updated && (
         <div className="mb-6 border border-neutral-900 px-4 py-3 text-sm">Updated.</div>
       )}
@@ -52,18 +59,10 @@ export default async function StaffConsole({
       )}
 
       {!code && (
-        <div className="max-w-sm">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Change an item&apos;s status</p>
-          <div className="mt-1">
-            <Muted>
-              Find the piece on the{" "}
-              <Link href="/admin/items" className="underline underline-offset-4 hover:text-neutral-900">
-                Item lookup
-              </Link>{" "}
-              page, by name, brand or the code under its QR, and tap the code to mark it held, in the fitting room, sold or back on the rail.
-            </Muted>
-          </div>
-        </div>
+        <Briefing
+          brands={brandsForBrief((brandRows ?? []) as Array<{ name: string; slug: string; attending_days: string[] | null }>)}
+          today={today}
+        />
       )}
 
       {code && !unit && (
@@ -120,28 +119,6 @@ export default async function StaffConsole({
         </div>
       )}
 
-      <div className="mt-16 max-w-sm border-t border-neutral-200 pt-8">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Express counter</p>
-        <div className="mt-1">
-          <Muted>A customer who paid online — type or scan their collect code.</Muted>
-        </div>
-
-        {collected && (
-          <div className="mt-4 border border-neutral-900 px-4 py-3 text-sm">Collected: {collected}</div>
-        )}
-        {collectError && (
-          <div className="mt-4 border border-red-600 px-4 py-3 text-sm text-red-600">{collectError}</div>
-        )}
-
-        <form action={collectOrderAction} className="mt-4">
-          <div className="flex gap-2">
-            <Input name="collect_code" placeholder="Collect code" className="uppercase" />
-            <Button type="submit" size="compact">
-              Mark collected
-            </Button>
-          </div>
-        </form>
-      </div>
     </AdminShell>
   );
 }

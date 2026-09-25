@@ -9,14 +9,14 @@ const ADMIN_NAV = [
   { href: "/admin/approvals", label: "Approvals" },
   { href: "/admin/items", label: "Item lookup" },
   { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/staff", label: "Floor staff" },
+  { href: "/admin/staff", label: "Floor staff briefing" },
   { href: "/admin/till", label: "Checkout" },
   { href: "/admin/pickup", label: "Order pickup" },
 ];
 
 /** What a floor-staff account can reach: the console and the till. */
 const STAFF_NAV = [
-  { href: "/admin/staff", label: "Floor staff" },
+  { href: "/admin/staff", label: "Floor staff briefing" },
   { href: "/admin/items", label: "Item lookup" },
   { href: "/admin/till", label: "Checkout" },
   { href: "/admin/pickup", label: "Order pickup" },
