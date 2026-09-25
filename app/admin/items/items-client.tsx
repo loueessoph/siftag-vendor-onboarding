@@ -7,6 +7,7 @@ import type { AdminItem } from "@/lib/admin-items";
 import type { UnitStatus } from "@/lib/live-event";
 import { sized } from "@/lib/images";
 import { PhotoPlaceholder } from "@/components/store/photo-placeholder";
+import { copyText } from "@/components/admin/copy-code";
 
 const STATUS: Record<UnitStatus, { label: string; dot: string }> = {
   available: { label: "Available", dot: "bg-green-500" },
@@ -17,38 +18,12 @@ const STATUS: Record<UnitStatus, { label: string; dot: string }> = {
 
 const money = (n: number | null) => (n == null ? "—" : `£${n.toFixed(2)}`);
 
-/** Clipboard API where the page is allowed it (https), the old selection trick elsewhere. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fall through */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The storefront's card grid, for staff: each card carries its stock by
  * size and every tag code with its status. Type part of a name, a brand or
  * a tag code to find something; the code under a garment's QR is the
- * quickest way to a specific piece. Tapping a code opens the status
- * buttons for that garment.
+ * quickest way to a specific piece. Tapping a code copies it; tapping the
+ * photo opens the status buttons for every piece of that style.
  */
 export function ItemsClient({ items }: { items: AdminItem[] }) {
   const [query, setQuery] = useState("");
