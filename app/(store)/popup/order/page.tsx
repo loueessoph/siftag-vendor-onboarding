@@ -7,8 +7,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const dynamic = "force-dynamic";
+
+/** The address confirmations really come from, so the page never contradicts the inbox. */
+function senderAddress(): string {
+  const from = process.env.EMAIL_FROM ?? "";
+  const match = from.match(/<([^>]+)>/);
+  return (match ? match[1] : from).trim() || "popup@siftag.com";
+}
+
 /** Lost the confirmation? The code alone brings the order back up. */
 export default function OrderLookupPage() {
+  const sender = senderAddress();
   return (
     <main className="bg-white">
       <div className="mx-auto max-w-md px-5 py-8">
@@ -19,7 +29,7 @@ export default function OrderLookupPage() {
           QR code to show at the Express counter.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-neutral-500">
-          The confirmation came from <strong className="font-medium text-neutral-900">popup@siftag.com</strong> with the subject
+          The confirmation came from <strong className="font-medium text-neutral-900">{sender}</strong> with the subject
           &ldquo;Your Siftag Pop-Up order&rdquo;. Check your spam or junk folder if you can&apos;t see it.
         </p>
         <OrderLookup />
