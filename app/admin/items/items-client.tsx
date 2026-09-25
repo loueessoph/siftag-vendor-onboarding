@@ -69,37 +69,41 @@ export function ItemsClient({ items }: { items: AdminItem[] }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 pt-4 md:grid-cols-3 lg:grid-cols-4">
+      {/* Phones get one card per row with the photo beside the details, so
+          the tag codes have the full width; wider screens get the shop grid. */}
+      <div className="grid grid-cols-1 gap-8 pt-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
         {shown.map((item) => (
-          <article key={item.productId} className="flex flex-col">
-            <Link href={`/popup/product/${item.productId}`} target="_blank" className="relative mb-3 aspect-[3/4] overflow-hidden rounded-lg bg-gray-200">
+          <article key={item.productId} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 sm:flex sm:flex-col">
+            <Link href={`/popup/product/${item.productId}`} target="_blank" className="relative aspect-[3/4] overflow-hidden rounded-lg bg-gray-200 sm:mb-3">
               {item.imageUrl ? (
-                <Image src={sized(item.imageUrl, 600)} alt={item.title} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover object-top" />
+                <Image src={sized(item.imageUrl, 600)} alt={item.title} fill sizes="(max-width: 640px) 30vw, (max-width: 768px) 50vw, 25vw" className="object-cover object-top" />
               ) : (
                 <PhotoPlaceholder />
               )}
             </Link>
-            <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{item.brandName}</p>
-            <h3 className="mb-1 text-sm text-gray-900">{item.title}</h3>
-            {item.fibreComposition && <p className="mb-1 truncate text-xs text-gray-500">{item.fibreComposition}</p>}
-            <p className="text-sm text-gray-900">{money(item.priceGbp)}</p>
+            <div className="min-w-0">
+              <p className="mb-1 truncate text-xs uppercase tracking-widest text-gray-400">{item.brandName}</p>
+              <h3 className="mb-1 text-sm text-gray-900">{item.title}</h3>
+              {item.fibreComposition && <p className="mb-1 truncate text-xs text-gray-500">{item.fibreComposition}</p>}
+              <p className="text-sm text-gray-900">{money(item.priceGbp)}</p>
 
-            <p className="mt-3 text-[11px] text-neutral-500">
-              <span className="text-neutral-900">{item.counts.available} available</span>
-              {item.counts.held > 0 && ` · ${item.counts.held} held`}
-              {item.counts.fitting_room > 0 && ` · ${item.counts.fitting_room} in fitting room`}
-              {item.counts.sold > 0 && ` · ${item.counts.sold} sold`}
-              {item.counts.available + item.counts.held + item.counts.fitting_room + item.counts.sold === 0 && "No stock declared"}
-            </p>
+              <p className="mt-3 text-[11px] text-neutral-500">
+                <span className="text-neutral-900">{item.counts.available} available</span>
+                {item.counts.held > 0 && ` · ${item.counts.held} held`}
+                {item.counts.fitting_room > 0 && ` · ${item.counts.fitting_room} in fitting room`}
+                {item.counts.sold > 0 && ` · ${item.counts.sold} sold`}
+                {item.counts.available + item.counts.held + item.counts.fitting_room + item.counts.sold === 0 && "No stock declared"}
+              </p>
+            </div>
 
-            <ul className="mt-2 divide-y divide-neutral-100 border-y border-neutral-100 text-xs">
+            <ul className="col-span-2 mt-3 divide-y divide-neutral-100 border-y border-neutral-100 text-xs sm:mt-2">
               {item.sizes.map((s) => (
                 <li key={`${s.size}-${s.colour}-${s.sku}`} className="flex items-start justify-between gap-3 py-1.5">
                   <span className="shrink-0 text-neutral-900">
                     {s.size ?? "One size"}
                     {s.colour && <span className="text-neutral-400"> · {s.colour}</span>}
                   </span>
-                  <span className="flex flex-wrap justify-end gap-x-2 gap-y-0.5">
+                  <span className="flex min-w-0 flex-1 flex-wrap justify-end gap-x-2 gap-y-0.5">
                     {s.units.length === 0 && <span className="text-neutral-300">no tags</span>}
                     {s.units.map((u) => (
                       <Link
