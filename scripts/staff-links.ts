@@ -1,6 +1,6 @@
 /**
  * Prints the floor team's sign-in link for the site in NEXT_PUBLIC_SITE_URL.
- * One link for everyone: it asks who you are, then keeps you signed in for
+ * One link for everyone: opening it signs the phone in as floor staff for
  * 30 days. Only valid where the same ADMIN_SESSION_SECRET is set.
  *
  *   node --experimental-strip-types --import ./scripts/ts-resolver.mjs --env-file=.env.local scripts/staff-links.ts
