@@ -11,8 +11,11 @@
  */
 
 export const ADMIN_COOKIE = "siftag_admin";
-const SESSION_HOURS = 12;
-export const SESSION_MAX_AGE_SECONDS = SESSION_HOURS * 3600;
+// Long enough to cover the whole event and its wrap-up: a retail assistant
+// who opened their link on Friday morning is still signed in on Sunday
+// night. Signing out clears it early.
+const SESSION_DAYS = 30;
+export const SESSION_MAX_AGE_SECONDS = SESSION_DAYS * 24 * 3600;
 
 export type SessionRole = "admin" | "staff";
 
@@ -53,7 +56,7 @@ const decode = (s: string) => Buffer.from(s, "base64url").toString("utf8");
 export async function createSessionToken(
   who: Pick<Session, "role" | "name" | "email">
 ): Promise<string> {
-  const expiry = String(Date.now() + SESSION_HOURS * 3_600_000);
+  const expiry = String(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
   const payload = [expiry, who.role, encode(who.name), encode(who.email ?? "")].join(".");
   return `${payload}.${await sign(payload)}`;
 }
@@ -118,6 +121,34 @@ export function staffPasswordMatches(submitted: string): string | null {
     const name = entry.slice(0, colon).trim();
     const password = entry.slice(colon + 1).trim();
     if (password && sameSecret(submitted, password)) match = name;
+  }
+  return match;
+}
+
+/** The retail assistants' names, in the order STAFF_PASSWORDS lists them. */
+export function staffNames(): string[] {
+  const raw = process.env.STAFF_PASSWORDS ?? "";
+  return raw
+    .split(",")
+    .map((entry) => entry.slice(0, entry.indexOf(":")).trim())
+    .filter(Boolean);
+}
+
+/**
+ * A retail assistant's private link, like a vendor's: opening it signs them
+ * in as themselves with nothing to type. The token is an HMAC of the name
+ * under the session secret, so it is stable (the same link all weekend),
+ * unguessable, and revoked by changing the secret or removing the name.
+ */
+export async function staffLinkToken(name: string): Promise<string> {
+  return (await sign(`staff-link:${name}`)).slice(0, 32);
+}
+
+/** The name a staff link token belongs to, or null. Every name is checked so timing reveals nothing. */
+export async function staffNameForLinkToken(token: string): Promise<string | null> {
+  let match: string | null = null;
+  for (const name of staffNames()) {
+    if (sameSecret(token, await staffLinkToken(name))) match = name;
   }
   return match;
 }
