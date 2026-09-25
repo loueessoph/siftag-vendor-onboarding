@@ -135,22 +135,17 @@ export function staffNames(): string[] {
 }
 
 /**
- * A retail assistant's private link, like a vendor's: opening it signs them
- * in as themselves with nothing to type. The token is an HMAC of the name
- * under the session secret, so it is stable (the same link all weekend),
- * unguessable, and revoked by changing the secret or removing the name.
+ * The one private link for the floor team, like a vendor's link: opening it
+ * shows the assistants' names, and a tap on your own signs you in as you,
+ * nothing to type. The token is an HMAC under the session secret, so it is
+ * stable, unguessable, and revoked by changing the secret.
  */
-export async function staffLinkToken(name: string): Promise<string> {
-  return (await sign(`staff-link:${name}`)).slice(0, 32);
+export async function staffLinkToken(): Promise<string> {
+  return (await sign("staff-link")).slice(0, 32);
 }
 
-/** The name a staff link token belongs to, or null. Every name is checked so timing reveals nothing. */
-export async function staffNameForLinkToken(token: string): Promise<string | null> {
-  let match: string | null = null;
-  for (const name of staffNames()) {
-    if (sameSecret(token, await staffLinkToken(name))) match = name;
-  }
-  return match;
+export async function staffLinkValid(token: string): Promise<boolean> {
+  return sameSecret(token, await staffLinkToken());
 }
 
 /** Where a 'staff' session may go: the floor console, the items list, the till, and in/out. */
