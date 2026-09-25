@@ -98,6 +98,66 @@ export type StaffUnit = {
   brandName: string;
 };
 
+export type StaffProduct = {
+  productId: string;
+  productTitle: string;
+  brandName: string;
+  imageUrl: string | null;
+  eventId: string;
+  units: Array<{ id: string; unitCode: string; status: UnitStatus; size: string | null; colour: string | null }>;
+};
+
+/** Every piece of one style, so staff can change any of them from one screen. */
+export async function getProductUnitsForStaff(productId: string): Promise<StaffProduct | null> {
+  const { data: product, error: productError } = await fromPopup("popup_products")
+    .select("id, title, image_url, popup_brand_id")
+    .eq("id", productId)
+    .maybeSingle();
+  if (productError) throw productError;
+  if (!product) return null;
+  const [{ data: brand }, { data: variants }] = await Promise.all([
+    fromPopup("popup_brands").select("name").eq("id", product.popup_brand_id).single(),
+    fromPopup("popup_variants").select("id, size, colour").eq("popup_product_id", product.id),
+  ]);
+  const variantById = new Map((variants ?? []).map((v) => [v.id as string, v]));
+  const variantIds = [...variantById.keys()];
+  const { data: units, error: unitsError } = variantIds.length
+    ? await fromPopup("popup_units").select("id, event_id, unit_code, status, popup_variant_id").in("popup_variant_id", variantIds)
+    : { data: [], error: null };
+  if (unitsError) throw unitsError;
+  const eventId = (units?.[0]?.event_id as string | undefined) ?? (await getActiveEvent()).id;
+  await releaseExpiredHolds(eventId);
+  const { data: fresh } = units?.length
+    ? await fromPopup("popup_units").select("id, status").in("id", units.map((u) => u.id as string))
+    : { data: [] };
+  const freshStatus = new Map((fresh ?? []).map((u) => [u.id as string, u.status as UnitStatus]));
+
+  const order = ["XXS", "XS", "S", "M", "L", "XL", "XXL"];
+  const rank = (size: string | null) => {
+    const i = order.indexOf((size ?? "").toUpperCase());
+    return i === -1 ? order.length + (Number(size) || 0) : i;
+  };
+  return {
+    productId: product.id as string,
+    productTitle: product.title as string,
+    brandName: (brand?.name as string) ?? "",
+    imageUrl: product.image_url as string | null,
+    eventId,
+    units: (units ?? [])
+      .map((u) => {
+        const v = variantById.get(u.popup_variant_id as string);
+        return {
+          id: u.id as string,
+          unitCode: u.unit_code as string,
+          status: freshStatus.get(u.id as string) ?? (u.status as UnitStatus),
+          size: (v?.size as string | null) ?? null,
+          colour: (v?.colour as string | null) ?? null,
+        };
+      })
+      .sort((a, b) => rank(a.size) - rank(b.size) || (a.colour ?? "").localeCompare(b.colour ?? "") || a.unitCode.localeCompare(b.unitCode)),
+  };
+}
+
 /** Compact unit lookup for the floor-staff console — enough to confirm it's the right item before tapping a status. */
 export async function getUnitForStaff(unitCode: string): Promise<StaffUnit | null> {
   const { data: unit, error: unitError } = await fromPopup("popup_units")

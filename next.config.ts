@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // Lets a phone on the same Wi-Fi load the dev server's scripts (Next blocks
   // dev assets for any origin but localhost). Private-network addresses only;
   // it has no effect on the deployed site.
-  allowedDevOrigins: ["172.30.1.35", "192.168.*.*", "10.*.*.*", "172.16.*.*", "*.local"],
+  allowedDevOrigins: ["172.30.*.*", "192.168.*.*", "10.*.*.*", "172.16.*.*", "*.local"],
   // The tag PDF route reads fonts and brand logos off disk at request time.
   // Vercel's bundler only ships files it can see imported, so name them.
   outputFileTracingIncludes: {
