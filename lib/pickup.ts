@@ -118,28 +118,30 @@ export async function pickupAction(collectCode: string, action: PickupAction, st
   // First time it's marked ready, tell the customer. Marking it ready again
   // after an undo doesn't send a second copy.
   if (action === "packed" && !order.packed_at) {
-    const emailed = await sendReadyEmail(order.id, order.customer_id as string | null, code);
-    return { ok: true, message: emailed ? `Emailed ${emailed} that it's ready.` : "Marked ready. No email address on the order, so nothing was sent." };
+    const outcome = await sendReadyEmail(order.id, order.customer_id as string | null, code);
+    return { ok: true, message: outcome };
   }
   return { ok: true };
 }
 
-/** Returns the address it went to, or null when there was nobody to tell or sending failed. */
-async function sendReadyEmail(orderId: string, customerId: string | null, collectCode: string): Promise<string | null> {
-  if (!customerId) return null;
+/** Tells the customer, and says exactly what happened so the counter isn't guessing. */
+async function sendReadyEmail(orderId: string, customerId: string | null, collectCode: string): Promise<string> {
+  if (!customerId) return "No customer on the order, so no email was sent.";
+  let email: string | null = null;
   try {
     const { data: customer } = await fromPopup("popup_customers").select("email, name").eq("id", customerId).maybeSingle();
-    if (!customer?.email) return null;
+    if (!customer?.email) return "No email address on the order, so nothing was sent.";
+    email = customer.email as string;
     const { data: orderItems } = await fromPopup("popup_order_items").select("popup_unit_id").eq("order_id", orderId);
     const items = await getUnitsLineItems((orderItems ?? []).map((i) => i.popup_unit_id as string));
-    const result = await notifyOrderReady({ email: customer.email, name: customer.name ?? null, collectCode, items });
+    const result = await notifyOrderReady({ email: email as string, name: customer.name ?? null, collectCode, items });
     if (!result.delivered) {
       console.error("Ready-for-pickup email failed", result, collectCode);
-      return null;
+      return `Couldn't email ${email}: ${result.reason ?? "sending failed"}. Tell the customer another way.`;
     }
-    return customer.email;
+    return `Emailed ${email} that it's ready.`;
   } catch (err) {
     console.error("Ready-for-pickup email failed", err, collectCode);
-    return null;
+    return `Couldn't email ${email ?? "the customer"}: ${err instanceof Error ? err.message : "sending failed"}. Tell the customer another way.`;
   }
 }
