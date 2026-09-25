@@ -42,7 +42,7 @@ const BRAND_VIBES: Record<string, { site: string; vibe: string; note?: string }>
   },
   "laine-hill": {
     site: "lainehill.com",
-    vibe: "Organic cotton activewear, sports bras and leggings, 92% organic cotton with a little elastane and no polyester. Minimal and honest, around £55 to £70.",
+    vibe: "Organic cotton activewear, sports bras and leggings, 92% organic cotton with a little elastane and no polyester. Think Alo vibes but without polyester, around £55 to £70.",
   },
   "margen-atelier": {
     site: "margenatelier.com",
@@ -135,7 +135,7 @@ export function Briefing({ brands, today }: { brands: Brand[]; today: string }) 
           <Faq q="Can I try things on?">Yes, there&apos;s a fitting area. Mark the piece as in the fitting room while they have it (see below).</Faq>
           <Faq q="What is this made of?">
             It&apos;s on the tag: the fibre composition is printed under the name. Every piece in the room is natural fibre, no
-            polyester, nylon or acrylic.
+            polyester in any item.
           </Faq>
           <Faq q="Can I return this?">
             All sales are final. Faulty or damaged items can be returned within 30 days. If someone asks about a return,

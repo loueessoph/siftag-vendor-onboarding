@@ -8,7 +8,7 @@ import { setUnitStatusAction } from "./actions";
 import { Briefing, brandsForBrief } from "./briefing";
 
 export const metadata: Metadata = {
-  title: "Floor staff: Siftag pop-up admin",
+  title: "Floor staff briefing: Siftag pop-up admin",
   robots: { index: false, follow: false },
 };
 
@@ -48,7 +48,7 @@ export default async function StaffConsole({
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
   return (
-    <AdminShell eyebrow="Event day" title={code ? "Change an item's status" : "Floor staff brief"}>
+    <AdminShell eyebrow="Event day" title={code ? "Change an item's status" : "Floor staff briefing"}>
       {updated && (
         <div className="mb-6 border border-neutral-900 px-4 py-3 text-sm">Updated.</div>
       )}
