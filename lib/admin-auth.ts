@@ -11,8 +11,11 @@
  */
 
 export const ADMIN_COOKIE = "siftag_admin";
-const SESSION_HOURS = 12;
-export const SESSION_MAX_AGE_SECONDS = SESSION_HOURS * 3600;
+// Long enough to cover the whole event and its wrap-up: a retail assistant
+// who opened their link on Friday morning is still signed in on Sunday
+// night. Signing out clears it early.
+const SESSION_DAYS = 30;
+export const SESSION_MAX_AGE_SECONDS = SESSION_DAYS * 24 * 3600;
 
 export type SessionRole = "admin" | "staff";
 
@@ -53,7 +56,7 @@ const decode = (s: string) => Buffer.from(s, "base64url").toString("utf8");
 export async function createSessionToken(
   who: Pick<Session, "role" | "name" | "email">
 ): Promise<string> {
-  const expiry = String(Date.now() + SESSION_HOURS * 3_600_000);
+  const expiry = String(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
   const payload = [expiry, who.role, encode(who.name), encode(who.email ?? "")].join(".");
   return `${payload}.${await sign(payload)}`;
 }
@@ -120,6 +123,32 @@ export function staffPasswordMatches(submitted: string): string | null {
     if (password && sameSecret(submitted, password)) match = name;
   }
   return match;
+}
+
+/** The retail assistants' names, in the order STAFF_PASSWORDS lists them. */
+export function staffNames(): string[] {
+  const raw = process.env.STAFF_PASSWORDS ?? "";
+  return raw
+    .split(",")
+    .map((entry) => entry.slice(0, entry.indexOf(":")).trim())
+    .filter(Boolean);
+}
+
+/** What the shared link signs a phone in as; the till and status buttons log this name. */
+export const STAFF_LINK_NAME = "Floor staff";
+
+/**
+ * The one private link for the floor team, like a vendor's link: opening it
+ * signs the phone in as floor staff for the event, nothing to type. The
+ * token is an HMAC under the session secret, so it is stable, unguessable,
+ * and revoked by changing the secret.
+ */
+export async function staffLinkToken(): Promise<string> {
+  return (await sign("staff-link")).slice(0, 32);
+}
+
+export async function staffLinkValid(token: string): Promise<boolean> {
+  return sameSecret(token, await staffLinkToken());
 }
 
 /** Where a 'staff' session may go: the floor console, the items list, the till, and in/out. */
