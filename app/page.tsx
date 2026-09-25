@@ -55,8 +55,7 @@ export default function IntroPage() {
         </div>
 
         <p className="mt-3 max-w-xs text-[13px] leading-snug text-gray-600 md:text-sm">
-          Siftag is the first and largest polyester-free platform.{" "}
-          <strong className="font-semibold text-gray-900">Shop the pop-up and collect at Fabrica X, or come and try it on in person.</strong>
+          Siftag is the first and largest polyester-free platform. Shop the pop-up and collect at Fabrica X, or come and try it on in person.
         </p>
 
         <Link
@@ -65,7 +64,7 @@ export default function IntroPage() {
         >
           Shop the items
         </Link>
-        <p className="mt-2.5 text-[9px] uppercase tracking-[0.2em] text-gray-400 md:text-[10px]">Pickup only, no shipping · All sales are final</p>
+        <p className="mt-2.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-900 md:text-[10px]">Pickup only, no shipping · All sales are final</p>
       </div>
     </main>
   );
