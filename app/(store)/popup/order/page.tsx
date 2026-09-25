@@ -18,6 +18,10 @@ export default function OrderLookupPage() {
           Type the six-character pickup code from your confirmation email or screenshot. You&apos;ll see what you ordered and the
           QR code to show at the Express counter.
         </p>
+        <p className="mt-3 text-sm leading-relaxed text-neutral-500">
+          The confirmation came from <strong className="font-medium text-neutral-900">popup@siftag.com</strong> with the subject
+          &ldquo;Your Siftag Pop-Up order&rdquo;. Check your spam or junk folder if you can&apos;t see it.
+        </p>
         <OrderLookup />
       </div>
     </main>

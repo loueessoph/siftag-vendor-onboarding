@@ -14,19 +14,24 @@ import { useCart } from "./cart";
 export function StoreHeader() {
   return (
     <header className="w-full bg-white" role="banner">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pt-3 md:px-6">
-        <div className="flex flex-1 items-center gap-4">
+      {/* The wordmark is centred on the page, not between the two sides, so
+          the wider "track my order" button on the left doesn't push it over. */}
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between px-4 pt-3 md:px-6">
+        <div className="flex items-center gap-4">
           <span className="hidden text-[11px] tracking-widest text-gray-500 md:inline">FABRICA X · 25–27 SEPT</span>
-          <Link href="/popup/order" className="text-[11px] tracking-widest text-gray-500 transition-colors hover:text-gray-900">
-            MY ORDER
+          <Link
+            href="/popup/order"
+            className="whitespace-nowrap rounded-full border border-gray-900 px-3 py-1.5 text-[10px] tracking-widest text-gray-900 transition-colors hover:bg-gray-900 hover:text-white md:px-4 md:text-[11px]"
+          >
+            TRACK MY ORDER
           </Link>
         </div>
-        <div className="shrink-0">
+        <div className="absolute left-1/2 -translate-x-1/2">
           <Link href="/popup" aria-label="Siftag Pop-Up shop">
             <Image src="/SiftagLogo.png" alt="Siftag" width={100} height={33} className="h-auto w-[100px] md:w-[120px]" priority />
           </Link>
         </div>
-        <div className="flex flex-1 items-center justify-end gap-1 md:gap-3">
+        <div className="flex items-center justify-end gap-1 md:gap-3">
           <BagButton />
         </div>
       </div>

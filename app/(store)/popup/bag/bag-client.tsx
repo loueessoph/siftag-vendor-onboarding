@@ -246,6 +246,9 @@ export function BagClient({ cancelledCode }: { cancelledCode: string | null }) {
             <Field label="PHONE" type="tel" value={contact.phone} onChange={(v) => setContact({ ...contact, phone: v })} autoComplete="tel" placeholder="07700 900000" />
             <p className="mt-1.5 text-[11px] text-gray-400">Only used if we need to reach you about this order.</p>
           </div>
+          <p className="col-span-2 text-[11px] text-gray-400">
+            <span className="text-red-600">*</span> All fields are required.
+          </p>
         </div>
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
@@ -284,7 +287,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] tracking-widest text-gray-500">{label}</span>
+      <span className="text-[11px] tracking-widest text-gray-500">
+        {label} <span className="text-red-600" aria-hidden="true">*</span>
+      </span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

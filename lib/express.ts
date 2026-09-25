@@ -10,8 +10,12 @@ import { expireCheckoutSession, openCheckoutUrl } from "./stripe";
 import { notifyOrderPaid } from "./email";
 
 export class UnitsUnavailableError extends Error {
-  constructor(public unavailableCodes: string[]) {
+  unavailableCodes: string[];
+  // Not a parameter property: Node's type stripping can't run those, and
+  // the scripts import this module directly.
+  constructor(unavailableCodes: string[]) {
     super(`Some items were just taken: ${unavailableCodes.join(", ")}`);
+    this.unavailableCodes = unavailableCodes;
   }
 }
 
