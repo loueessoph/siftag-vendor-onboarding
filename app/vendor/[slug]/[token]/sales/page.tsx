@@ -49,23 +49,24 @@ export default async function VendorSalesPage({ params }: { params: Promise<{ sl
           <div className="mt-3">
             <Muted>
               {report.unitsSold === 0
-                ? "Nothing's sold yet. This page updates live once the doors open."
-                : "Live from the till and the online checkout. Figures are finalised in your settlement after the event."}
+                ? "Nothing sold through the Siftag till or online. If you took payments directly, send us your own list of sales."
+                : "Every sale through the Siftag till and the online checkout. Your payout is gross less commission and the card fees Stripe actually charged on your sales, passed on at cost."}
             </Muted>
           </div>
 
-          <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 border-y border-neutral-200 py-8 sm:grid-cols-4">
+          <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 border-y border-neutral-200 py-8 sm:grid-cols-3">
             <Stat label="Units sold" value={String(report.unitsSold)} note={`of ${report.unitsTotal} on the rail`} />
-            <Stat label="Revenue" value={money(report.grossGbp)} />
-            <Stat label="Estimated payout" value={money(report.netPayableGbp)} note={`after ${report.commissionPct}% commission`} />
-            <Stat label="Sold through" value={`${report.sellThroughPct}%`} note={`${report.remaining} still available`} />
+            <Stat label="Gross sales" value={money(report.grossGbp)} note={`${report.sellThroughPct}% sold through, ${report.remaining} left`} />
+            <Stat label="Commission" value={`-${money(report.commissionGbp)}`} note={`${report.commissionPct}% of gross`} />
+            <Stat label="Card processing fees" value={`-${money(report.cardFeesGbp)}`} note="what Stripe charged on your sales, passed on at cost" />
+            <Stat label="Your payout" value={money(report.netPayableGbp)} note="gross less commission and card fees" />
           </dl>
           {report.recent.length > 0 && (
             <a
               href={`/api/vendor/sales?token=${encodeURIComponent(token)}`}
               className="mt-6 inline-block text-xs uppercase tracking-[0.2em] underline underline-offset-4 hover:text-neutral-500"
             >
-              Download every sale as a spreadsheet (CSV) →
+              Download every sale with its commission and card fee (CSV) →
             </a>
           )}
         </Section>
@@ -168,7 +169,8 @@ export default async function VendorSalesPage({ params }: { params: Promise<{ sl
                       <span className="text-neutral-500">{[s.colour, s.size].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
                     </td>
                     <td className="py-3 pr-4 text-right text-xs uppercase tracking-wide text-neutral-400">{s.source === "till" ? "Counter" : "Online"}</td>
-                    <td className="py-3 text-right tabular-nums">{money(s.priceGbp)}</td>
+                    <td className="py-3 pr-4 text-right tabular-nums">{money(s.priceGbp)}</td>
+                    <td className="py-3 text-right tabular-nums text-xs text-neutral-500">fee {money(s.cardFeeGbp)}</td>
                   </tr>
                 ))}
               </tbody>

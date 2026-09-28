@@ -10,6 +10,7 @@ import { completedCount, nextAction, stepsWithStatus } from "@/lib/steps";
 import { vendorPath } from "@/lib/brands";
 import { getVendorByToken, markOpened } from "@/lib/vendor";
 import { getVendorSales, money } from "@/lib/live-event";
+import { getVendorSalesReport } from "@/lib/vendor-sales";
 import { listAdminItems } from "@/lib/admin-items";
 import { VendorItemsGrid } from "@/components/vendor/items-grid";
 
@@ -36,7 +37,7 @@ export default async function VendorHub({
 
   const { brand, progress } = context;
   await markOpened(brand);
-  const [sales, items] = await Promise.all([getVendorSales(brand.id), listAdminItems(brand.id)]);
+  const [sales, report, items] = await Promise.all([getVendorSales(brand.id), getVendorSalesReport(brand.id), listAdminItems(brand.id)]);
 
   const base = vendorPath(brand.slug, token);
   const steps = stepsWithStatus(progress, brand);
@@ -89,8 +90,8 @@ export default async function VendorHub({
               <div className="mt-1.5">
                 <Muted>
                   {sales.unitsSold === 0
-                    ? "Nothing's sold yet — this updates live once the doors open."
-                    : "Updates live as sales come in. Finalized once the event closes."}
+                    ? "Nothing sold through the Siftag till or online. If you took payments directly, send us your own list of sales."
+                    : "Your payout is gross sales less commission and the card processing fees Stripe actually charged, passed on at cost as agreed."}
                 </Muted>
               </div>
             </div>
@@ -105,12 +106,13 @@ export default async function VendorHub({
             evenSplit
             rows={[
               { label: "Units sold", value: String(sales.unitsSold) },
-              { label: "Revenue", value: money(sales.grossGbp) },
+              { label: "Gross sales", value: money(sales.grossGbp) },
               {
                 label: `Commission (${sales.commissionPct}%)`,
                 value: `-${money(sales.commissionGbp)}`,
               },
-              { label: "Estimated payout", value: money(sales.netPayableGbp) },
+              { label: "Card processing fees (at cost)", value: `-${money(report.cardFeesGbp)}` },
+              { label: "Your payout", value: money(report.netPayableGbp) },
               {
                 label: "Live stock",
                 value: `${sales.stock.available} available · ${sales.stock.held} held · ${sales.stock.fittingRoom} in fitting room · ${sales.stock.sold} sold`,
