@@ -14,6 +14,10 @@ import { generateCollectCode } from "../lib/codes";
 const SALES = [
   { unitCode: "CA46FFEE", paymentIntentId: "pi_3UJHzDEXBChQMQdp1u6HO0g4", paidGbp: 38, paidAt: "2026-09-24T19:07:15.000Z", what: "Vintage Cashmere V Neck Jumper S" },
   { unitCode: "26F4925B", paymentIntentId: "pi_3UJH8aEXBChQMQdp0e3YQA8Z", paidGbp: 40.5, paidAt: "2026-09-24T18:12:52.000Z", what: "Vintage Heeled Boots 6 (10% off £45)" },
+  // Stripe-app sales with a typed memo and no till order. The memo names the
+  // style but not the size, so the piece is the likeliest one still in stock.
+  { unitCode: "B0EFECE9", paymentIntentId: "pi_3UJvNEEXBChQMQdp12KPj602", paidGbp: 30, paidAt: "2026-09-26T13:10:00.000Z", what: "Plain and Simple Long Sleeve T-Shirt M Grey (memo: long sleeve grey top)" },
+  { unitCode: "36CC1C30", paymentIntentId: "pi_3UKKRsEXBChQMQdp0v0cjfcM", paidGbp: 30, paidAt: "2026-09-27T15:57:00.000Z", what: "Plain and Simple Heavyweight Boxy T-Shirt M Black (memo: heavyweight men's shirt)" },
 ];
 
 const db = supabaseAdmin();
