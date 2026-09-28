@@ -9,6 +9,7 @@
 import { fromPopup } from "./supabase/server";
 import { computeLiveSettlement } from "./live-event";
 import { normalizeSizeLabel } from "./sizes";
+import { cardFeesForPayments, shareFee } from "./stripe-fees";
 import { compareSizes } from "./selection";
 
 export type Sale = {
@@ -17,6 +18,8 @@ export type Sale = {
   size: string | null;
   colour: string | null;
   priceGbp: number;
+  /** This piece's share of the card processing fee Stripe charged on the payment. */
+  cardFeeGbp: number;
   /** "express" is the shopper's own phone, "till" the counter. */
   source: "express" | "till";
   collectCode: string;
@@ -39,6 +42,9 @@ export type VendorSalesReport = {
   grossGbp: number;
   commissionPct: number;
   commissionGbp: number;
+  /** Stripe's actual card processing fees on this brand's sales. */
+  cardFeesGbp: number;
+  /** Gross less commission less card fees: what the brand is paid. */
   netPayableGbp: number;
   unitsTotal: number;
   remaining: number;
@@ -100,25 +106,49 @@ export async function getVendorSalesReport(brandId: string): Promise<VendorSales
 
   // The sales themselves, with the paid time and channel from the order.
   const { data: items, error: iErr } = await fromPopup("popup_order_items")
-    .select("popup_unit_id, price_gbp, created_at, popup_orders!inner(status, paid_at, source, collect_code)")
+    .select("popup_unit_id, price_gbp, created_at, popup_orders!inner(id, status, paid_at, source, collect_code, stripe_payment_intent_id)")
     .eq("popup_brand_id", brandId)
     .in("popup_orders.status", ["paid", "collected"])
     .order("created_at", { ascending: false });
   if (iErr) throw iErr;
 
+  // Each piece's share of its payment's real card fee. A payment may have
+  // covered other brands' pieces too, so the share is worked out over
+  // every piece in the order, then only this brand's pieces are kept.
+  type OrderRef = { id: string; paid_at: string | null; source: string | null; collect_code: string; stripe_payment_intent_id: string | null };
+  const orderIds = [...new Set((items ?? []).map((it) => (it.popup_orders as unknown as OrderRef).id))];
+  const { data: allItems } = orderIds.length
+    ? await fromPopup("popup_order_items").select("id, order_id, popup_unit_id, price_gbp").in("order_id", orderIds)
+    : { data: [] as Array<{ id: string; order_id: string; popup_unit_id: string; price_gbp: number }> };
+  const fees = await cardFeesForPayments(
+    (items ?? []).map((it) => (it.popup_orders as unknown as OrderRef).stripe_payment_intent_id ?? "").filter(Boolean)
+  );
+  const feeByUnit = new Map<string, number>();
+  for (const orderId of orderIds) {
+    const its = (allItems ?? []).filter((x) => x.order_id === orderId);
+    const pi = (items ?? []).map((it) => it.popup_orders as unknown as OrderRef).find((o) => o.id === orderId)?.stripe_payment_intent_id;
+    const fee = pi ? (fees.get(pi) ?? 0) : 0;
+    const shares = shareFee(fee, its.map((x) => Number(x.price_gbp ?? 0)));
+    its.forEach((x, i) => feeByUnit.set(x.popup_unit_id as string, shares[i]));
+  }
+  let cardFeesGbp = 0;
+
   const recent: Sale[] = [];
   const byDayMap = new Map<string, { day: string; units: number; revenueGbp: number; key: string }>();
   for (const it of items ?? []) {
-    const order = it.popup_orders as unknown as { paid_at: string | null; source: string | null; collect_code: string };
+    const order = it.popup_orders as unknown as OrderRef;
     const meta = unitMeta.get(it.popup_unit_id as string);
     const at = order.paid_at ?? (it.created_at as string);
     const price = Number(it.price_gbp ?? 0);
+    const cardFeeGbp = feeByUnit.get(it.popup_unit_id as string) ?? 0;
+    cardFeesGbp += cardFeeGbp;
     recent.push({
       at,
       productTitle: meta?.title ?? "Item",
       size: meta?.size ?? null,
       colour: meta?.colour ?? null,
       priceGbp: price,
+      cardFeeGbp,
       source: order.source === "till" ? "till" : "express",
       collectCode: order.collect_code,
     });
@@ -144,12 +174,14 @@ export async function getVendorSalesReport(brandId: string): Promise<VendorSales
     .filter((l) => l.unitsSold > 0 || l.remaining > 0)
     .sort((a, b) => b.revenueGbp - a.revenueGbp || b.unitsSold - a.unitsSold || a.title.localeCompare(b.title));
 
+  cardFeesGbp = Math.round(cardFeesGbp * 100) / 100;
   return {
     unitsSold: settlement.unitsSold,
     grossGbp: settlement.grossGbp,
     commissionPct: settlement.commissionPct,
     commissionGbp: settlement.commissionGbp,
-    netPayableGbp: settlement.netPayableGbp,
+    cardFeesGbp,
+    netPayableGbp: Math.round((settlement.grossGbp - settlement.commissionGbp - cardFeesGbp) * 100) / 100,
     unitsTotal,
     remaining,
     sellThroughPct: unitsTotal === 0 ? 0 : Math.round((settlement.unitsSold / unitsTotal) * 100),
@@ -160,15 +192,20 @@ export async function getVendorSalesReport(brandId: string): Promise<VendorSales
 }
 
 /** One row per garment sold, for the brand's own records. */
-export function salesCsv(brandName: string, sales: Sale[]): string {
+export function salesCsv(brandName: string, sales: Sale[], commissionPct: number): string {
   const esc = (v: string | number | null) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const rows = [["Brand", "Sold at (London)", "Product", "Size", "Colour", "Price (GBP)", "Channel", "Order"]];
+  const rows = [["Brand", "Sold at (London)", "Product", "Size", "Colour", "Price (GBP)", "Commission (GBP)", "Card fee (GBP)", "Net to you (GBP)", "Channel", "Order"]];
   const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/London" });
+  let gross = 0, commission = 0, fees = 0;
   for (const s of [...sales].reverse()) {
-    rows.push([brandName, fmt.format(new Date(s.at)), s.productTitle, s.size ?? "", s.colour ?? "", s.priceGbp.toFixed(2), s.source === "till" ? "Counter" : "Online", s.collectCode]);
+    const c = Math.round(s.priceGbp * commissionPct) / 100;
+    const net = Math.round((s.priceGbp - c - s.cardFeeGbp) * 100) / 100;
+    gross += s.priceGbp; commission += c; fees += s.cardFeeGbp;
+    rows.push([brandName, fmt.format(new Date(s.at)), s.productTitle, s.size ?? "", s.colour ?? "", s.priceGbp.toFixed(2), c.toFixed(2), s.cardFeeGbp.toFixed(2), net.toFixed(2), s.source === "till" ? "Counter" : "Online", s.collectCode]);
   }
+  rows.push(["Total", "", "", "", "", gross.toFixed(2), commission.toFixed(2), fees.toFixed(2), (gross - commission - fees).toFixed(2), "", ""]);
   return rows.map((r) => r.map(esc).join(",")).join("\n") + "\n";
 }

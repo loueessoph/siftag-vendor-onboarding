@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   if (!context) return NextResponse.json({ error: "Unknown link" }, { status: 404 });
   try {
     const report = await getVendorSalesReport(context.brand.id);
-    const csv = salesCsv(context.brand.name, report.recent);
+    const csv = salesCsv(context.brand.name, report.recent, report.commissionPct);
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
