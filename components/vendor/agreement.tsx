@@ -57,7 +57,7 @@ export function AgreementText({ vars }: { vars: AgreementVars }) {
           Signatures
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-neutral-500 sm:pl-8">
-          The parties indicate acceptance of this Agreement by signing below.
+          The parties indicate acceptance of this Agreement by signing below, or by taking part in the pop-up.
         </p>
         <dl className="mt-6 space-y-1 text-sm text-neutral-500 sm:pl-8">
           <dt className="font-medium text-neutral-900">
