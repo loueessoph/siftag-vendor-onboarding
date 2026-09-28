@@ -29,7 +29,9 @@ export type AgreementVars = {
 };
 
 // v3: catalogue deadline moved from 4 to 14 September (clause 4.1).
-export const AGREEMENT_VERSION = "2026-09-11-siftag-fabricax-v3";
+// v4: clause 1.4, acceptance by participation, for a vendor who traded
+//     without signing.
+export const AGREEMENT_VERSION = "2026-09-28-siftag-fabricax-v4";
 
 /**
  * Unresolved contradictions between this text and the rest of the operation.
@@ -96,6 +98,7 @@ export const AGREEMENT_CLAUSES: Clause[] = [
       "1.1 Siftag appoints the Vendor, and the Vendor accepts appointment, to participate in the Event for the Event period and for the associated pre-event and post-event logistics described in this Agreement.",
       "1.2 The Vendor's right to participate is personal to the Vendor and applies only to products approved by Siftag under clause 4. The Vendor may not assign, sub-license or share its space with another brand without Siftag's prior written consent.",
       "1.3 Siftag may issue a vendor pack, operational timetable and reasonable venue rules for the Event. Those operational materials will apply to the Vendor to the extent they are consistent with this Agreement.",
+      "1.4 By delivering stock to, attending, or selling at the Event, the Vendor accepts and agrees to be bound by this Agreement in full, including the fee, commission, card fee and payment terms in clause 2, whether or not the Vendor has signed it. Participation is the Vendor's acceptance of these terms.",
     ],
   },
   {
